@@ -124,6 +124,12 @@ Full detail is in rules.json; this is orientation only.
 | `scripts/server.py` | The online build: rooms, codes, reconnect, bot driver |
 | `scripts/test_server.py` | After any server or protocol change |
 | `scripts/export_web.py` | After changing card names, flavour or icons — regenerates static/cards.js |
+| `web/engine.js` | The browser port of the engine (static/Firebase build) |
+| `web/test-engine.mjs` | `node web/test-engine.mjs` after any change to either engine |
+| `web/net.js` | Firebase room layer — host-as-referee model |
+| `web/index.html` | The static client (GitHub Pages entry point) |
+| `database.rules.json` | Firebase security rules — must be published in the console |
+| `web/README.md` | How the static build is deployed and how it works |
 | `scripts/test_engine.py` | After ANY engine change; asserts no info leaks, no illegal moves, no lost cards |
 | `scripts/simulate.py` | Any balance question — run 10,000 matches instead of guessing |
 | `scripts/make_cards.py` | Rendering the deck: print sheets + design preview from rules.json. Three art directions via `--style street` (default, the designer's reference sheet), `riso` (two-ink screenprint) or `chalk`. `--final` drops cut guides. |
@@ -164,6 +170,23 @@ validated.
 
 Run `python scripts/test_engine.py` after any change to either the engine or
 rules.json.
+
+## The browser build (static hosting + Firebase)
+
+`web/engine.js` is a line-for-line port of `scripts/engine.py`: same phases, same
+action shapes, same event names, so the two cannot drift. `web/rules.js` is
+generated from references/rules.json. Both engines are held to the same test
+suite — run `node web/test-engine.mjs` and `python scripts/test_engine.py` after
+any rules change, and expect matching median match lengths (~56 actions).
+
+This build exists because free always-on hosting for a Python WebSocket server
+requires a card, while GitHub Pages plus Firebase's Spark plan requires neither.
+The trade-off is real and must be stated to the user whenever this path comes up:
+with no server, the engine runs in a player's browser, so the host client can
+inspect state. Firebase security rules can still hide each player's HAND from the
+opponent, but the deck order is visible to whoever draws. Acceptable among
+friends; not acceptable for a public release. Cloud Functions would fix it but
+need the Blaze plan, which needs a card.
 
 ## Working on the print edition or the website
 

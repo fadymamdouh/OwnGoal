@@ -1,0 +1,15 @@
+# Render blueprint. Push this repo to GitHub, then in Render:
+# New > Blueprint > pick the repo. Nothing else to configure.
+services:
+  - type: web
+    name: owngoal
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python scripts/server.py
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+      - key: OG_BOT_DELAY
+        value: "0.9"

@@ -130,6 +130,7 @@ Full detail is in rules.json; this is orientation only.
 | `web/index.html` | The static client (GitHub Pages entry point) |
 | `database.rules.json` | Firebase security rules — must be published in the console |
 | `web/README.md` | How the static build is deployed and how it works |
+| `scripts/build_offline.py` | Rebuilds `owngoal-offline.html` — run after any web/ change |
 | `scripts/test_engine.py` | After ANY engine change; asserts no info leaks, no illegal moves, no lost cards |
 | `scripts/simulate.py` | Any balance question — run 10,000 matches instead of guessing |
 | `scripts/make_cards.py` | Rendering the deck: print sheets + design preview from rules.json. Three art directions via `--style street` (default, the designer's reference sheet), `riso` (two-ink screenprint) or `chalk`. `--final` drops cut guides. |
@@ -178,6 +179,12 @@ action shapes, same event names, so the two cannot drift. `web/rules.js` is
 generated from references/rules.json. Both engines are held to the same test
 suite — run `node web/test-engine.mjs` and `python scripts/test_engine.py` after
 any rules change, and expect matching median match lengths (~56 actions).
+
+ES modules do not work from `file://` — the browser treats each local file as a
+separate origin and refuses every import between them. So local testing by
+double-click needs `scripts/build_offline.py`, which inlines everything into a
+single classic-script HTML file (`owngoal-offline.html`, bot play only). Never
+tell the user to just open `web/index.html` from disk; it cannot work.
 
 This build exists because free always-on hosting for a Python WebSocket server
 requires a card, while GitHub Pages plus Firebase's Spark plan requires neither.

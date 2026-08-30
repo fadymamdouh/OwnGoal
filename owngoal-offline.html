@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>أون جول — نسخة محلية</title>
+<link href="https://fonts.googleapis.com/css2?family=Rakkas&family=Cairo:wght@400;600;700;900&family=Oswald:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --attack:#D7263D;--attack-glow:#FF6B35;
+  --defense:#1B4F72;--defense-glow:#2ECC71;
+  --special:#7D3C98;--special-glow:#F1C40F;
+  --rare:#B8860B;--rare-glow:#F1C40F;
+  --ink:#F0E6D3;--muted:#A89880;--line:#2C2C54;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#0d0d16;color:var(--ink);font-family:'Cairo',sans-serif;
+  min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
+button{font-family:inherit;cursor:pointer;border:none}
+.wrap{flex:1;display:flex;flex-direction:column;max-width:520px;margin:0 auto;width:100%;
+  padding:14px 12px 0}
+
+/* ---------- lobby ---------- */
+.brand{font-family:'Rakkas',cursive;font-size:52px;text-align:center;line-height:1;
+  color:var(--attack-glow);margin-top:22px}
+.brand small{display:block;font-family:'Oswald',sans-serif;font-size:11px;
+  letter-spacing:.5em;color:var(--muted);margin-top:6px}
+.panel{background:#15151f;border:1px solid var(--line);border-radius:14px;padding:16px;
+  margin-top:18px}
+.panel h2{font-size:15px;font-weight:700;margin-bottom:10px}
+.row{display:flex;gap:8px;margin-bottom:10px}
+.row>*{flex:1}
+input{background:#0d0d16;border:1px solid var(--line);color:var(--ink);border-radius:10px;
+  padding:12px;font-size:16px;font-family:inherit;text-align:center;width:100%}
+input::placeholder{color:#55525f}
+.opt{background:#0d0d16;border:1px solid var(--line);color:var(--muted);border-radius:10px;
+  padding:11px 6px;font-size:13px;font-weight:600;transition:.15s}
+.opt.on{background:var(--attack);border-color:var(--attack);color:#fff}
+.go{width:100%;background:var(--attack-glow);color:#1a0505;border-radius:10px;padding:14px;
+  font-size:17px;font-weight:900;margin-top:4px}
+.go.ghost{background:transparent;border:1px solid var(--line);color:var(--ink);font-weight:700}
+.hint{color:var(--muted);font-size:12px;line-height:1.6;text-align:center;margin-top:12px}
+.code{font-family:'Oswald',sans-serif;font-size:34px;letter-spacing:.28em;text-align:center;
+  color:var(--special-glow);padding:6px 0}
+
+/* ---------- table ---------- */
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;
+  padding:8px 10px;background:#15151f;border:1px solid var(--line);border-radius:12px}
+.score{font-family:'Oswald',sans-serif;font-size:24px;letter-spacing:.08em}
+.who{font-size:11px;color:var(--muted)}
+.pill{font-size:10px;font-family:'Oswald',sans-serif;letter-spacing:.14em;padding:3px 7px;
+  border-radius:20px;background:#0d0d16;border:1px solid var(--line);color:var(--muted)}
+.pill.live{background:var(--defense-glow);color:#04220f;border-color:transparent}
+.prompt{text-align:center;padding:13px 10px;margin-top:10px;border-radius:12px;
+  background:#1a1226;border:1px solid #33244a;font-weight:700;font-size:15px;line-height:1.5}
+.prompt.mine{background:#1d0f10;border-color:#4a2226}
+.prompt small{display:block;color:var(--muted);font-size:12px;font-weight:600;margin-top:4px}
+.chain{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;min-height:34px;
+  align-items:center;margin-top:10px}
+.chip{font-size:11px;font-weight:700;padding:5px 9px;border-radius:8px;background:#15151f;
+  border:1px solid var(--line)}
+.chip.shot{border-color:var(--attack);color:var(--attack-glow)}
+.feed{margin-top:8px;max-height:82px;overflow-y:auto;font-size:12px;color:var(--muted);
+  line-height:1.75}
+.feed b{color:var(--ink);font-weight:700}
+.draws{display:flex;gap:8px;margin-top:10px}
+.draws button{flex:1;background:#15151f;border:1px solid var(--line);color:var(--ink);
+  border-radius:10px;padding:13px;font-size:15px;font-weight:700}
+.draws button b{display:block;font-family:'Oswald',sans-serif;font-size:22px;
+  color:var(--special-glow)}
+
+/* ---------- hand ---------- */
+.hand{display:flex;gap:8px;overflow-x:auto;padding:12px 4px 18px;scroll-snap-type:x mandatory}
+.hand::-webkit-scrollbar{display:none}
+.card{flex:0 0 108px;height:152px;border-radius:10px;position:relative;overflow:hidden;
+  border:1px solid #232338;display:flex;flex-direction:column;padding:7px 6px;
+  scroll-snap-align:center;transition:.15s;text-align:center}
+.card.attack{background:linear-gradient(155deg,#2a0a0a,#0d0000)}
+.card.defense{background:linear-gradient(155deg,#040e1a,#030b14)}
+.card.special{background:linear-gradient(155deg,#130820,#070311)}
+.card.rare{background:linear-gradient(155deg,#241705,#0d0700)}
+.card.dead{opacity:.32;filter:grayscale(.6)}
+.card.pick{transform:translateY(-8px);box-shadow:0 0 0 2px var(--defense-glow)}
+.card .en{font-family:'Oswald',sans-serif;font-size:7px;letter-spacing:.16em;color:var(--muted)}
+.card .ar{font-family:'Rakkas',cursive;font-size:19px;line-height:1.05;margin-top:1px}
+.card .ico{flex:1;display:flex;align-items:center;justify-content:center}
+.card .ln{font-size:8.5px;line-height:1.35;font-weight:700;opacity:.92}
+.card .bar{height:3px;border-radius:2px;margin-top:5px}
+.tick{position:absolute;top:5px;left:5px;font-size:9px;font-weight:900;color:var(--defense-glow)}
+.face2{position:absolute;inset:0;background:inherit;display:flex;flex-direction:column;
+  padding:7px 6px;text-align:center}
+.dual{display:flex;gap:6px;margin-top:6px}
+.dual button{flex:1;border-radius:8px;padding:8px 4px;font-size:11px;font-weight:700;
+  background:#15151f;border:1px solid var(--line);color:var(--ink)}
+.over{text-align:center;padding:22px 12px}
+.over .big{font-family:'Rakkas',cursive;font-size:40px;line-height:1.1}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="lobby">
+    <div class="brand">أون جول<small>OWN GOAL</small></div>
+
+    <div class="panel">
+      <h2>ابدأ ماتش جديد</h2>
+      <input id="name" placeholder="اسمك" maxlength="14">
+      <div class="row" style="margin-top:10px">
+        <button class="opt on" data-fmt="bot">ضد البوت</button>
+        <button class="opt" data-fmt="1v1">1 ضد 1</button>
+        <button class="opt" data-fmt="2v2">2 ضد 2</button>
+      </div>
+      <div class="row">
+        <button class="opt on" data-mode="LUCK">مود الحظ</button>
+        <button class="opt" data-mode="STRATEGY">مود التكتيك</button>
+      </div>
+      <button class="go" id="create">اعمل أوضة</button>
+    </div>
+
+    <div class="panel">
+      <h2>ادخل بكود أوضة</h2>
+      <input id="joincode" placeholder="ABC12" maxlength="5"
+             style="font-family:Oswald;letter-spacing:.3em;text-transform:uppercase">
+      <button class="go ghost" id="join">دخول</button>
+    </div>
+    <div class="hint">أول واحد يوصل 3 أهداف يكسب.<br>الكروت المقسومة ليها وشين — هجوم ودفاع.</div>
+  </div>
+
+  <div id="waiting" class="hide">
+    <div class="brand" style="font-size:34px;margin-top:30px">مستني الخصم</div>
+    <div class="panel"><h2 style="text-align:center">كود الأوضة</h2>
+      <div class="code" id="roomcode">—</div>
+      <div class="hint">ابعت الكود لصاحبك عشان يدخل بيه</div></div>
+    <div class="panel" id="lobbylist"></div>
+  </div>
+
+  <div id="game" class="hide">
+    <div class="top">
+      <div><div class="score" id="score">0 — 0</div><div class="who" id="names">—</div></div>
+      <div style="text-align:left"><span class="pill" id="turnpill">—</span>
+        <div class="who" id="deckinfo" style="margin-top:4px">—</div></div>
+    </div>
+    <div class="prompt" id="prompt">—</div>
+    <div class="chain" id="chain"></div>
+    <div class="draws hide" id="draws"></div>
+    <div class="feed" id="feed"></div>
+    <div class="hand" id="hand"></div>
+    <div class="over hide" id="over"></div>
+  </div>
+</div>
+<script>
+// ============ generated by scripts/build_offline.py — do not edit ============
+// generated from references/rules.json — do not edit
+const RULES = {"game": "OWN GOAL", "version": "1.2.0", "match": {"goals_to_win": 3, "hand_size": 4, "hand_size_is_fixed": true, "match_types": ["ONE_V_ONE", "TWO_V_TWO"], "play_modes": ["LUCK", "STRATEGY"], "mixing_modes_allowed": false, "ends_when": ["a side reaches goals_to_win", "END_MATCH card is played"], "turn_limit": null, "turn_limit_ruling": "ACCEPTED_BY_DESIGNER — no turn limit. A match ends only on goals_to_win or END_MATCH. Mitigating factor: a player holding possession MUST play an attack card each turn, so stalling is not a legal strategy; the deadlock case requires a player to repeatedly hold no attack card at all. Watch total match length in the first playtest.", "goals_to_win_status": "CONFIRMED by designer."}, "physical_cards": [{"id": "PASS_INTERCEPTION", "type": "split", "faces": ["PASS", "INTERCEPTION"], "copies": 15}, {"id": "DRIBBLE_TACKLE", "type": "split", "faces": ["DRIBBLE", "TACKLE"], "copies": 5}, {"id": "SHOT_GOAL_GOAL_KEEPER", "type": "split", "faces": ["SHOT_GOAL", "GOAL_KEEPER"], "copies": 5}, {"id": "SUPER_SHOT_BLOCK_SAVE", "type": "split", "faces": ["SUPER_SHOT", "BLOCK_SAVE"], "copies": 2}, {"id": "ASSIST", "type": "full", "faces": ["ASSIST"], "copies": 5}, {"id": "GOAL", "type": "full", "faces": ["GOAL"], "copies": 5}, {"id": "FOUL", "type": "full", "faces": ["FOUL"], "copies": 4}, {"id": "BLOCK", "type": "full", "faces": ["BLOCK"], "copies": 4}, {"id": "BLOCK_SHOT", "type": "full", "faces": ["BLOCK_SHOT"], "copies": 3}, {"id": "CHAIN", "type": "full", "faces": ["CHAIN"], "copies": 2}, {"id": "VAR", "type": "full", "faces": ["VAR"], "copies": 2}, {"id": "RESHUFFLE", "type": "full", "faces": ["RESHUFFLE"], "copies": 4}, {"id": "END_MATCH", "type": "full", "faces": ["END_MATCH"], "copies": 1}, {"id": "OWN_GOAL", "type": "full", "faces": ["OWN_GOAL"], "copies": 1}, {"id": "OFFSIDE", "type": "full", "faces": ["OFFSIDE"], "copies": 1}, {"id": "PENALTY", "type": "full", "faces": ["PENALTY"], "copies": 1}], "cards": {"PASS": {"name_ar": "باص", "class": "attack", "stage": "pass"}, "DRIBBLE": {"name_ar": "مراوغة", "class": "attack", "stage": "dribble"}, "SHOT_GOAL": {"name_ar": "شوطة", "class": "attack", "stage": "shot"}, "SUPER_SHOT": {"name_ar": "سوبر شوط", "class": "attack", "stage": "shot"}, "ASSIST": {"name_ar": "أسيست", "class": "attack", "stage": "pass", "match_types": ["TWO_V_TWO"], "note": "On success, possession transfers to your PARTNER, who may then play GOAL. This is the only route to the Goal card."}, "GOAL": {"name_ar": "جول", "class": "attack", "stage": "shot", "match_types": ["TWO_V_TWO"], "play_condition": "2v2 only. Playable ONLY immediately after your partner has played a successful ASSIST, which transfers possession to you. It cannot be played free-standing."}, "INTERCEPTION": {"name_ar": "اعتراض", "class": "defense"}, "TACKLE": {"name_ar": "تدخل", "class": "defense"}, "GOAL_KEEPER": {"name_ar": "حارس مرمى", "class": "defense"}, "BLOCK_SAVE": {"name_ar": "صد سوبر شوط", "class": "defense"}, "BLOCK_SHOT": {"name_ar": "صد تسديدة", "class": "defense"}, "BLOCK": {"name_ar": "بلوك", "class": "defense", "play_modes": ["LUCK"]}, "OFFSIDE": {"name_ar": "تسلل", "class": "defense"}, "OWN_GOAL": {"name_ar": "هدف عكسي", "class": "defense"}, "FOUL": {"name_ar": "فاول", "class": "defense"}, "PENALTY": {"name_ar": "بنالتي", "class": "attack", "stage": "shot", "playable_from_hand": true, "play_condition": "Play it after the opponent has committed a Foul against you. It is a guaranteed goal.", "note": "CLOSED (Q3): sits in the draw deck like any other card and can be drawn into hand."}, "VAR": {"name_ar": "في إيه آر", "class": "special"}, "CHAIN": {"name_ar": "استخلاص", "class": "special"}, "RESHUFFLE": {"name_ar": "ريشافل", "class": "special"}, "END_MATCH": {"name_ar": "نهاية الماتش", "class": "special"}}, "counters": [{"defense": "INTERCEPTION", "stops": ["PASS", "ASSIST"]}, {"defense": "TACKLE", "stops": ["DRIBBLE"]}, {"defense": "GOAL_KEEPER", "stops": ["SHOT_GOAL"]}, {"defense": "BLOCK_SAVE", "stops": ["SUPER_SHOT"], "note": "The ONLY answer to Super Shot in the entire game. ACCEPTED_BY_DESIGNER: Super Shot is meant to be a rare finisher, not a duel. Only 2 copies exist, and because Block Save shares its physical card, an attacker holding one Super Shot leaves just one possible save in the deck — the defender's real chance of holding it is nearer 7% than 13%."}, {"defense": "BLOCK_SHOT", "stops": ["SHOT_GOAL"], "note": "Functionally identical to Goal Keeper, and INTENTIONALLY so. ACCEPTED_BY_DESIGNER: Goal Keeper is trapped on a split card with Shot Goal, so extra keepers would mean extra shots. Block Shot is a FULL card, making it the only way to add shot-defense to the deck without adding attacking power. The duplication is deck maths, not redundancy."}, {"defense": "BLOCK", "stops": ["PASS", "ASSIST"], "note": "Stops Pass and Assist only, without taking possession — so Interception does the same job strictly better. ACCEPTED_BY_DESIGNER: kept as-is. It is also disabled in Strategy mode. Watch in playtesting whether anyone plays it by choice rather than as a forced defense attempt; its most likely real use is as burn fodder for the mandatory-defense rule."}, {"defense": "OFFSIDE", "stops": ["PASS", "ASSIST", "SHOT_GOAL", "GOAL"], "note": "CLOSED (Q2): does not stop Super Shot, so 'Super Shot is answered by Block Save only' holds."}, {"defense": "OWN_GOAL", "stops": ["SHOT_GOAL", "GOAL", "PENALTY"]}, {"defense": "FOUL", "stops": ["PASS", "DRIBBLE", "ASSIST"], "note": "NOT universal. Foul cannot answer Shot Goal, Super Shot, Goal or Penalty (designer correction)."}, {"defense": "VAR", "stops": ["GOAL", "PENALTY", "OFFSIDE"], "note": "Resolves as a coin-flip review, not a normal duel. Reviews a Goal card, a Penalty, or an Offside call against you. See resolution.var."}, {"defense": "CHAIN", "stops": ["PASS", "DRIBBLE", "ASSIST"], "note": "CLOSED (Q14): Chain interrupts BUILD-UP only. It cannot be played against any goal-scoring card — Shot Goal, Super Shot, Goal or Penalty — because a scoring card may only be answered by the defenses assigned to it in this table. Chain covers the same ground as Interception and Tackle combined and takes possession, which would dominate them both; its balance is scarcity, at 2 copies against 15 Interceptions and 5 Tackles."}], "possession_after_successful_defense": {"INTERCEPTION": "defender", "TACKLE": "defender", "OFFSIDE": "defender", "GOAL_KEEPER": "neutral", "BLOCK_SAVE": "neutral", "BLOCK_SHOT": "neutral", "BLOCK": "neutral", "OWN_GOAL": "attacker", "FOUL": "attacker", "CHAIN": "defender", "VAR": "neutral"}, "play_modes": {"LUCK": {"label_ar": "مود الحظ", "draw_per_attack_action": 1, "play_per_attack_action": 1, "draw_per_defense_action": 1, "play_per_defense_action": 1, "defense_answers": "every attack card in the chain, one by one", "disabled_cards": [], "feel": "fast, no planning, the only decision is timing", "is_default_experience": true}, "STRATEGY": {"label_ar": "مود التكتيك", "draw_per_attack_action": [1, 3], "play_per_attack_action": "exactly the number drawn, as one uninterrupted combo", "draw_per_defense_action": [1, 3], "play_per_defense_action": "exactly the number drawn", "defense_answers": "the LAST card of the attacking chain only — middle cards pass automatically.", "disabled_cards": ["BLOCK"], "feel": "more control, chance to build a full combo", "hand_growth": "none — hand is fixed at 4 in both modes, permanently (designer ruling).", "combo_reward": "ACCEPTED_BY_DESIGNER — none. The mode's value is agency and hand management, not a mechanical bonus.", "actual_function": "For the ATTACKER the 1-3 draw is mainly a hand-churn tool. For the DEFENDER it is the heart of the mode: stop the attack and launch a counter-attack in the same turn.", "defense_engine": ["The defender draws 1-3 and spends them IN ORDER against the last attack card.", "Card 1 is an attempt to break possession. If it is not a valid counter, he tries card 2, then card 3.", "The first card that IS a valid counter succeeds: the attack is cancelled and possession resolves per possession_after_successful_defense.", "Any cards still unspent at that moment become his own attack chain, played immediately in the same turn — a counter-attack.", "If ALL his drawn cards fail, the attack succeeds normally.", "A counter-attack is only possible when the successful defense card actually grants possession (Interception, Tackle, Offside). Goal Keeper, Block Save and Block Shot are neutral, so they stop the attack but launch nothing.", "Leftover cards that cannot be played as an attack (full defense cards such as Foul, Own Goal, Offside, VAR, Block) are BURNED to the discard pile. Hand size returns to 4 either way — card parity between sides is never allowed to drift. Split cards are not affected: a Goal Keeper card can always be played on its Shot Goal face."], "skill_expression": "Card ORDER is now a real skill, and the draw size is a genuine trade-off: drawing 3 raises the chance of stopping the attack but shrinks the counter-attack, since every failed attempt eats a card that would have been part of it. And what you draw matters as much as how many: drawing into full defense cards mid-counter-attack burns them for nothing, so a hand heavy on Foul and Offside is a hand that should draw 1, not 3.", "accepted_risk": "With the shot-last rule in place, simulation shows the shoot-on-sight and build-up policies win 50.6% vs 49.4% — the mode is balanced and build-up cards are genuinely required. The earlier concern about combos being dominated is resolved by this rule.", "shot_must_be_last": true, "chain_order_rule": "CLOSED (Q13): within a chain played in one turn, a shot-stage card must be the LAST card. Build-up cards come first. A shot therefore always faces a defense and can never slip through as an undefended middle card. Playing a shot ends the chain immediately; any cards still undrawn-but-owed from the draw are burned, per the same rule as counter-attack leftovers. This does not conflict with \"any Attack card may open a chain\" — a single-card turn may still be a shot."}}, "match_types_detail": {"ONE_V_ONE": {"removed_cards": ["ASSIST", "GOAL"], "scoring": "a successful shot-stage card scores directly", "reshuffle": "deck swap only", "win_applies_to": "the player", "after_a_goal": "CLOSED: the conceding player restarts. Same principle as 2v2 — scoring never keeps you on the attack."}, "TWO_V_TWO": {"removed_cards": [], "turn_order": "T1P1 → T2P1 → T1P2 → T2P2", "scoring": "CLOSED (Q5): two routes. (1) Any successful shot-stage card (Shot Goal, Super Shot, Penalty) scores directly, same as 1v1. (2) A partner plays ASSIST; if it survives, possession transfers to the other partner, who may then play GOAL. GOAL is not playable without that Assist.", "reshuffle": "deck swap or partner trade", "win_applies_to": "the team", "defender_selection": "CLOSED: the defender is the NEXT player in the fixed turn order, who is always an opponent because the order alternates teams (T1P1, T2P1, T1P2, T2P2). The attacker does not choose his defender, and the defending team does not choose who answers — it is whoever the rotation names.", "possession_transfer": "CLOSED: when a defender wins the ball (Interception, Tackle, Offside, Chain), possession goes to his PARTNER, who attacks next — never to the winner himself. Winning the ball is a pass to your teammate, exactly as in football, and it keeps both partners involved by alternating them.", "turn_structure": "The ATTACKER is named by possession; the DEFENDER is the next player in the fixed rotation after that attacker, who is always an opponent because the rotation alternates teams.", "neutral_possession": "CLOSED: after a neutral save (Goal Keeper, Block Save, Block Shot) the ball goes to the NEXT player in the rotation, who attacks if he holds an attack card. If he does not, it carries on to the next player in the rotation, and so on. The ball can therefore return to the attacking team — which is what makes it genuinely neutral, and what keeps a keeper save different from winning the ball outright.", "turn_slots": "The four players occupy a fixed repeating rotation: T1P1, T2P1, T1P2, T2P2. Every action consumes the actor's slot — DEFENDING costs you your turn exactly as attacking does. That is why the defender is simply the next slot in the rotation.", "after_a_goal": "CLOSED: after ANY goal, play resumes at the next slot in the rotation belonging to the CONCEDING team. A normal goal therefore restarts with the conceding side's other player (the one who just defended has spent his slot); an Own Goal restarts with the conceding side too, since the side that was attacking is the side scored against.", "partner_communication": "CLOSED: partners may talk freely but must NEVER name or describe a specific card. \"Leave this one to me\" is legal; \"I have the keeper\" is not. The opponents hear everything, so the hint itself is information — which is the point. Hands stay hidden from the partner, so a Reshuffle partner-trade is a calculated risk rather than a solved move."}}};
+
+// generated by scripts/export_web.py — do not edit
+const CARDS = {
+ "PASS": {
+  "ar": "باص",
+  "en": "PASS",
+  "kind": "attack",
+  "line": "الكرة تتنقل بينهم بهدوء... مفيش أي استعجال.",
+  "rule": "يتلغى بـ اعتراض · تسلل · بلوك · فاول"
+ },
+ "INTERCEPTION": {
+  "ar": "اعتراض",
+  "en": "INTERCEPTION",
+  "kind": "defense",
+  "line": "ويقطعها!! في اللحظة المناسبة تمامًا!",
+  "rule": "يوقف باص وأسيست · بياخد الاستحواذ"
+ },
+ "DRIBBLE": {
+  "ar": "مراوغة",
+  "en": "DRIBBLE",
+  "kind": "attack",
+  "line": "يراوغ الأول... والتاني!! والمدافع على الأرض!",
+  "rule": "يتلغى بـ تدخل · فاول"
+ },
+ "TACKLE": {
+  "ar": "تدخل",
+  "en": "TACKLE",
+  "kind": "defense",
+  "line": "تدخل حاسم! الكرة أولًا ثم اللاعب!",
+  "rule": "يوقف مراوغة · بياخد الاستحواذ"
+ },
+ "SHOT_GOAL": {
+  "ar": "شوطة",
+  "en": "SHOT GOAL",
+  "kind": "attack",
+  "line": "يسدد!! الكرة في الشبااااك!!",
+  "rule": "نجحت = هدف · لازم تكون آخر كارت في السلسلة"
+ },
+ "GOAL_KEEPER": {
+  "ar": "حارس مرمى",
+  "en": "GOAL KEEPER",
+  "kind": "defense",
+  "line": "الحااارس!! ينقذ فريقه من هدف محقق!",
+  "rule": "يوقف شوطة · الاستحواذ محايد"
+ },
+ "SUPER_SHOT": {
+  "ar": "سوبر شوط",
+  "en": "SUPER SHOT",
+  "kind": "rare",
+  "line": "قذيفة!!! والحارس لم يتحرك من مكانه!",
+  "rule": "مالوش رد غير Block Save · ولا الفاول بيلغيه"
+ },
+ "BLOCK_SAVE": {
+  "ar": "صد سوبر شوط",
+  "en": "BLOCK SAVE",
+  "kind": "rare",
+  "line": "يبعدها بأطراف أصابعه!! إنقاذ كان مستحيلًا!",
+  "rule": "الرد الوحيد على سوبر شوط · الاستحواذ محايد"
+ },
+ "ASSIST": {
+  "ar": "أسيست",
+  "en": "ASSIST",
+  "kind": "attack",
+  "line": "تمريرة سحرية!! تشق الدفاع نصفين!",
+  "rule": "2v2 · نجح؟ الاستحواذ لزميلك ويفتح كارت الجول"
+ },
+ "GOAL": {
+  "ar": "جول",
+  "en": "GOAL",
+  "kind": "attack",
+  "line": "جوووول!! يا جماهير أون جول!! الشباك تهتز!",
+  "rule": "2v2 · بعد أسيست زميلك بس · يتلغى بـ تسلل·VAR·أون جول"
+ },
+ "PENALTY": {
+  "ar": "بنالتي",
+  "en": "PENALTY",
+  "kind": "rare",
+  "line": "الحكم يشير إلى علامة الجزاء!! لا جدال فيها!",
+  "rule": "العبها بعد فاول عليك = هدف · يتلغى بـ أون جول أو VAR"
+ },
+ "FOUL": {
+  "ar": "فاول",
+  "en": "FOUL",
+  "kind": "defense",
+  "line": "خطأ واضح ومتعمد! أوقف الهجمة بأي ثمن!",
+  "rule": "يوقف باص·مراوغة·أسيست بس · الاستحواذ يرجع للمهاجم"
+ },
+ "OFFSIDE": {
+  "ar": "تسلل",
+  "en": "OFFSIDE",
+  "kind": "defense",
+  "line": "الراية مرفوعة! سابق للكرة بخطوة كاملة!",
+  "rule": "يوقف باص·أسيست·شوطة·جول · بياخد الاستحواذ"
+ },
+ "BLOCK": {
+  "ar": "بلوك",
+  "en": "BLOCK",
+  "kind": "defense",
+  "line": "تصدى لها بجسده! والكرة تضيع بين الجميع!",
+  "rule": "مود الحظ بس · يوقف باص وأسيست · بلا استحواذ"
+ },
+ "BLOCK_SHOT": {
+  "ar": "صد تسديدة",
+  "en": "BLOCK SHOT",
+  "kind": "defense",
+  "line": "يرتمي أمام الكرة!! ويمنع هدفًا محققًا!",
+  "rule": "يوقف شوطة · الاستحواذ محايد"
+ },
+ "OWN_GOAL": {
+  "ar": "هدف عكسي",
+  "en": "OWN GOAL",
+  "kind": "rare",
+  "line": "لااااا!! في شباكه!! كارثة بكل المقاييس!",
+  "rule": "النقطة تتحسب لك · يشتغل ضد شوطة·جول·بنالتي"
+ },
+ "CHAIN": {
+  "ar": "استخلاص",
+  "en": "CHAIN",
+  "kind": "special",
+  "line": "يستخلصها!! وينهي الهجمة قبل أن تبدأ!",
+  "rule": "على كروت البناء بس · مبيلغيش أي كارت بيسجل"
+ },
+ "VAR": {
+  "ar": "في إيه آر",
+  "en": "VAR",
+  "kind": "special",
+  "line": "الحكم يتوجه إلى الشاشة... الملعب كله واقف!",
+  "rule": "راجع هدف·بنالتي·تسلل · وش يأكد وضهر يلغي · مرة لكل حدث"
+ },
+ "RESHUFFLE": {
+  "ar": "ريشافل",
+  "en": "RESHUFFLE",
+  "kind": "special",
+  "line": "تغيير تكتيكي! المدرب غير مرتاح!",
+  "rule": "بدّل كارتين من الديك · أو 2 مع زميلك في 2v2"
+ },
+ "END_MATCH": {
+  "ar": "نهاية الماتش",
+  "en": "END MATCH",
+  "kind": "special",
+  "line": "صافرة النهاية!! ولا وقت بدل ضائع لأحد!",
+  "rule": "الماتش يخلص فورًا · متعادل؟ الفوز لخصمك"
+ }
+};
+const ICONS = {
+ "PASS": "<circle cx=\"20\" cy=\"26\" r=\"6\"/><path d=\"M4 14h18M8 9h14\"/>",
+ "INTERCEPTION": "<path d=\"M4 24h20\"/><path d=\"M18 18l6 6-6 6\"/><path d=\"M28 10v28\"/>",
+ "DRIBBLE": "<path d=\"M4 34c6 0 6-10 12-10s6 10 12 10\"/><circle cx=\"32\" cy=\"12\" r=\"5\"/>",
+ "TACKLE": "<path d=\"M4 32h14l4-8\"/><path d=\"M4 32l2 6h12\"/><circle cx=\"31\" cy=\"27\" r=\"6\"/>",
+ "SHOT_GOAL": "<circle cx=\"14\" cy=\"24\" r=\"6\"/><path d=\"M26 12h12v24H26z\"/><path d=\"M32 12v24M26 24h12\"/>",
+ "GOAL_KEEPER": "<path d=\"M10 34V18a4 4 0 018 0v-4a3 3 0 016 0v4a3 3 0 016 0v16z\"/><path d=\"M10 34h20\"/>",
+ "SUPER_SHOT": "<circle cx=\"26\" cy=\"22\" r=\"7\"/><path d=\"M4 12l8 4-8 4M4 26l10 3-10 3\"/><path d=\"M36 10l-4 6h5l-5 8\"/>",
+ "BLOCK_SAVE": "<path d=\"M8 36V22a3 3 0 016 0v-6a3 3 0 016 0v6\"/><circle cx=\"30\" cy=\"14\" r=\"6\"/><path d=\"M20 22h6\"/>",
+ "ASSIST": "<path d=\"M4 34c4-16 16-22 28-22\"/><path d=\"M26 8l6 4-6 4\"/><circle cx=\"8\" cy=\"34\" r=\"4\"/>",
+ "GOAL": "<path d=\"M6 12h28v24H6z\"/><path d=\"M14 12v24M22 12v24M30 12v24M6 20h28M6 28h28\"/><circle cx=\"20\" cy=\"24\" r=\"5\"/>",
+ "PENALTY": "<circle cx=\"20\" cy=\"14\" r=\"6\"/><circle cx=\"20\" cy=\"34\" r=\"2\"/><path d=\"M20 20v10\" stroke-dasharray=\"3 3\"/>",
+ "FOUL": "<path d=\"M8 18h16l8-4v14l-8-4H8z\"/><path d=\"M8 18a6 6 0 000 6\"/><path d=\"M32 8l4-4M36 14h6\"/>",
+ "OFFSIDE": "<path d=\"M12 8v32\"/><path d=\"M12 10l20 5-20 5z\"/>",
+ "BLOCK": "<path d=\"M10 10v28M20 10v28M30 10v28\"/><path d=\"M4 20h32\"/>",
+ "BLOCK_SHOT": "<path d=\"M6 36c8-2 12-10 12-18\"/><path d=\"M18 18l8 4\"/><circle cx=\"32\" cy=\"14\" r=\"6\"/>",
+ "OWN_GOAL": "<path d=\"M6 12h28v24H6z\"/><path d=\"M14 12v24M22 12v24M30 12v24\"/><path d=\"M34 24H16\"/><path d=\"M22 18l-6 6 6 6\"/>",
+ "CHAIN": "<path d=\"M6 16h14M20 16l-5-4M20 16l-5 4\"/><path d=\"M34 30H20M20 30l5-4M20 30l5 4\"/>",
+ "VAR": "<path d=\"M6 10h28v20H6z\"/><path d=\"M16 34h12\"/><path d=\"M17 16l8 4-8 4z\"/>",
+ "RESHUFFLE": "<path d=\"M8 14h20M28 14l-5-4M28 14l-5 4\"/><path d=\"M32 30H12M12 30l5-4M12 30l5 4\"/><path d=\"M4 22h32\" stroke-dasharray=\"2 4\"/>",
+ "END_MATCH": "<circle cx=\"20\" cy=\"22\" r=\"14\"/><path d=\"M20 12v10l7 5\"/><path d=\"M20 4v4\"/>"
+};
+const FAMILY = {"attack": "#D7263D", "defense": "#1B4F72", "special": "#7D3C98", "rare": "#B8860B"};
+const GLOW = {"attack": "#FF6B35", "defense": "#2ECC71", "special": "#F1C40F", "rare": "#F1C40F"};
+const QTY = {"PASS": 15, "INTERCEPTION": 15, "DRIBBLE": 5, "TACKLE": 5, "SHOT_GOAL": 5, "GOAL_KEEPER": 5, "SUPER_SHOT": 2, "BLOCK_SAVE": 2, "ASSIST": 5, "GOAL": 5, "FOUL": 4, "BLOCK": 4, "BLOCK_SHOT": 3, "CHAIN": 2, "VAR": 2, "RESHUFFLE": 4, "END_MATCH": 1, "OWN_GOAL": 1, "OFFSIDE": 1, "PENALTY": 1};
+
+// OWN GOAL — game engine, browser build.
+//
+// A faithful port of scripts/engine.py. Same phases, same action shapes, same
+// event names, so the Python server and this browser build cannot drift apart
+// in behaviour. Rules come from rules.js, generated from references/rules.json.
+//
+// In this build the engine runs inside one player's browser rather than on a
+// server, so `view(seat)` is what gets published per player and is still the
+// only thing an opponent should ever receive.
+
+const COUNTERS = {};
+for (const c of RULES.counters) COUNTERS[c.defense] = new Set(c.stops);
+const POSSESSION = RULES.possession_after_successful_defense;
+const CARD_RULES = RULES.cards;   // rules metadata, not the display text
+const GOALS_TO_WIN = RULES.match.goals_to_win;
+const HAND = RULES.match.hand_size;
+
+const SHOT_STAGE = new Set(
+  Object.entries(CARD_RULES).filter(([, c]) => c.stage === 'shot').map(([f]) => f));
+const DEFENSE_FACES = new Set([
+  ...Object.entries(CARD_RULES).filter(([, c]) => c.class === 'defense').map(([f]) => f),
+  'CHAIN',
+]);
+
+// A seeded generator, so a match can be replayed exactly from its seed.
+function makeRng(seed) {
+  let s = (seed ?? Math.floor(Math.random() * 2 ** 31)) | 0 || 1;
+  return {
+    next() { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return (s >>> 0) / 2 ** 32; },
+    int(n) { return Math.floor(this.next() * n); },
+    pick(a) { return a[this.int(a.length)]; },
+    shuffle(a) {
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = this.int(i + 1);
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    },
+  };
+}
+
+const faceOfClass = (card, klass) =>
+  card.faces.find(f => CARD_RULES[f].class === klass) || null;
+
+class Seat {
+  constructor(index, name) {
+    this.index = index;
+    this.name = name;
+    this.hand = [];
+    this.fouled = false;         // may play Penalty
+    this.goalUnlocked = false;    // partner's Assist landed
+  }
+  has(face) { return this.hand.some(c => c.faces.includes(face)); }
+  find(id) { return this.hand.find(c => c.id === id); }
+}
+class Game {
+  constructor({ mode = 'LUCK', matchType = 'ONE_V_ONE', names = null, seed = null } = {}) {
+    if (!RULES.play_modes[mode]) throw new Error(`unknown mode ${mode}`);
+    this.mode = mode;
+    this.matchType = matchType;
+    this.rng = makeRng(seed);
+    this.n = matchType === 'ONE_V_ONE' ? 2 : 4;
+    const nm = names || Array.from({ length: this.n }, (_, i) => `P${i + 1}`);
+    this.seats = Array.from({ length: this.n }, (_, i) => new Seat(i, nm[i]));
+    this.score = [0, 0];
+    this.log = [];
+    this.eventId = 0;
+
+    this.deck = this._buildDeck();
+    this.discard = [];
+    for (const s of this.seats) for (let i = 0; i < HAND; i++) s.hand.push(this._draw());
+
+    this.possession = this.rng.int(this.n);
+    this.defender = this._next(this.possession);
+    this.chain = [];
+    this.owed = 0;
+    this.defOwed = 0;
+    this.pending = null;
+    this.over = false;
+    this.winner = null;
+    this.phase = this._openAttack();
+  }
+
+  _buildDeck() {
+    const removed = new Set(RULES.match_types_detail[this.matchType].removed_cards);
+    const disabled = new Set(RULES.play_modes[this.mode].disabled_cards);
+    const deck = [];
+    let id = 0;
+    for (const spec of RULES.physical_cards) {
+      if (spec.faces.some(f => removed.has(f) || disabled.has(f))) continue;
+      for (let i = 0; i < spec.copies; i++) {
+        deck.push({ id: `c${id++}`, faces: [...spec.faces], kind: spec.type });
+      }
+    }
+    return this.rng.shuffle(deck);
+  }
+
+  // ------------------------------------------------------------- helpers
+
+  team(i) { return i % 2; }
+  _partner(i) { return (i + 2) % this.n; }
+  _next(i) { return (i + 1) % this.n; }
+
+  _draw() {
+    if (!this.deck.length) {
+      if (!this.discard.length) return null;
+      this.deck = this.rng.shuffle(this.discard);
+      this.discard = [];
+      this._emit('deck_recycled');
+    }
+    return this.deck.pop();
+  }
+
+  _burn(seat, card) {
+    seat.hand.splice(seat.hand.indexOf(card), 1);
+    this.discard.push(card);
+  }
+
+  _emit(kind, extra = {}) {
+    const e = { id: ++this.eventId, kind, ...extra };
+    this.log.push(e);
+    return e;
+  }
+
+  _refill(seat) {
+    while (seat.hand.length < HAND) {
+      const c = this._draw();
+      if (!c) break;
+      seat.hand.push(c);
+    }
+  }
+  _refillAll() { for (const s of this.seats) this._refill(s); }
+
+  _strategy() { return this.mode === 'STRATEGY'; }
+
+  // L18: cards drawn but never played are burned, so a hand never grows.
+  _burnOwed(seatIndex, n) {
+    const seat = this.seats[seatIndex];
+    for (let i = 0; i < n; i++) {
+      if (!seat.hand.length) break;
+      this._burn(seat, seat.hand[this.rng.int(seat.hand.length)]);
+      this._emit('leftover_burned', { seat: seatIndex });
+    }
+  }
+
+  _playableAttacks(seat, lastOfChain) {
+    const out = [];
+    for (const c of seat.hand) {
+      const f = faceOfClass(c, 'attack');
+      if (!f) continue;
+      if (f === 'PENALTY' && !seat.fouled) continue;
+      if (f === 'GOAL' && !seat.goalUnlocked) continue;
+      // a shot closes the chain, so it may only be the final card
+      if (SHOT_STAGE.has(f) && !lastOfChain && this._strategy()) continue;
+      out.push([c, f]);
+    }
+    return out;
+  }
+
+  // ------------------------------------------------------------- phases
+
+  _openAttack() {
+    this.chain = [];
+    this.defender = this._next(this.possession);
+    if (this._strategy()) { this.owed = 0; return 'attack_draw'; }
+    this.owed = 1;
+    const c = this._draw();
+    if (c) this.seats[this.possession].hand.push(c);
+    return 'attack';
+  }
+
+  _openDefense() {
+    if (this._strategy()) { this.defOwed = 0; return 'defense_draw'; }
+    this.defOwed = 1;
+    const c = this._draw();
+    if (c) this.seats[this.defender].hand.push(c);
+    return 'defense';
+  }
+
+  // ------------------------------------------------------------- view
+
+  view(seatIndex) {
+    const me = this.seats[seatIndex];
+    return {
+      you: seatIndex,
+      mode: this.mode,
+      match_type: this.matchType,
+      phase: this.phase,
+      possession: this.possession,
+      defender: this.defender,
+      chain: [...this.chain],
+      score: [...this.score],
+      goals_to_win: GOALS_TO_WIN,
+      deck_left: this.deck.length,
+      discard: this.discard.length,
+      over: this.over,
+      winner: this.winner,
+      owed: seatIndex === this.possession ? this.owed : this.defOwed,
+      pending: this.pending,
+      hand: me.hand.map(c => ({ id: c.id, faces: [...c.faces], kind: c.kind })),
+      flags: { fouled: me.fouled, goal_unlocked: me.goalUnlocked },
+      seats: this.seats.map(s => ({
+        index: s.index, name: s.name, team: this.team(s.index), cards: s.hand.length,
+      })),
+      legal: this.legalActions(seatIndex),
+      log: this.log.slice(-12),
+    };
+  }
+
+  // ------------------------------------------------------------- legality
+
+  legalActions(seatIndex) {
+    if (this.over) return [];
+    const me = this.seats[seatIndex];
+    const acts = [];
+    const drawTop = Math.min(3, Math.max(1, this.deck.length + this.discard.length));
+
+    if (this.phase === 'attack_draw' && seatIndex === this.possession) {
+      return Array.from({ length: drawTop }, (_, i) => ({ type: 'draw', n: i + 1 }));
+    }
+    if (this.phase === 'defense_draw' && seatIndex === this.defender) {
+      return Array.from({ length: drawTop }, (_, i) => ({ type: 'draw', n: i + 1 }));
+    }
+
+    if (this.phase === 'attack' && seatIndex === this.possession) {
+      for (const [c, f] of this._playableAttacks(me, this.owed <= 1)) {
+        acts.push({ type: 'play', card_id: c.id, face: f });
+      }
+      for (const f of ['RESHUFFLE', 'END_MATCH']) {
+        const c = me.hand.find(x => x.faces.includes(f));
+        if (c) acts.push({ type: 'special', card_id: c.id, face: f });
+      }
+      if (!acts.some(a => a.type === 'play')) acts.push({ type: 'concede_possession' });
+      return acts;
+    }
+
+    if (this.phase === 'defense' && seatIndex === this.defender) {
+      const target = this.chain[this.chain.length - 1];
+      for (const c of me.hand) {
+        let f = faceOfClass(c, 'defense');
+        if (!f && c.faces.includes('CHAIN')) f = 'CHAIN';
+        if (f && DEFENSE_FACES.has(f)) {
+          acts.push({
+            type: 'play', card_id: c.id, face: f,
+            counters: (COUNTERS[f] || new Set()).has(target),
+          });
+        } else {
+          // mandatory attempt: any card may be burned
+          acts.push({ type: 'play', card_id: c.id, face: c.faces[0], counters: false });
+        }
+      }
+      return acts;
+    }
+
+    if (this.phase === 'react_own_goal' && seatIndex === this.pending.seat) {
+      for (const c of me.hand) {
+        if (c.faces.includes('OWN_GOAL')) {
+          acts.push({ type: 'play', card_id: c.id, face: 'OWN_GOAL' });
+        }
+      }
+      acts.push({ type: 'pass' });
+      return acts;
+    }
+
+    if (this.phase === 'react_var' && seatIndex === this.pending.seat) {
+      for (const c of me.hand) {
+        if (c.faces.includes('VAR')) {
+          acts.push({ type: 'play', card_id: c.id, face: 'VAR', call: 'heads' });
+          acts.push({ type: 'play', card_id: c.id, face: 'VAR', call: 'tails' });
+        }
+      }
+      acts.push({ type: 'pass' });
+      return acts;
+    }
+
+    return acts;
+  }
+
+  _check(seatIndex, action) {
+    const match = this.legalActions(seatIndex).find(a =>
+      Object.entries(action).every(([k, v]) => a[k] === v));
+    if (!match) {
+      throw new Error(`illegal action for seat ${seatIndex}: ${JSON.stringify(action)}`);
+    }
+    return match;
+  }
+
+  // ------------------------------------------------------------- apply
+
+  apply(seatIndex, action) {
+    this._check(seatIndex, action);
+    const before = this.log.length;
+    const handler = {
+      attack_draw: 'doDraw', defense_draw: 'doDraw', attack: 'doAttack',
+      defense: 'doDefense', react_own_goal: 'doOwnGoal', react_var: 'doVar',
+    }[this.phase];
+    this[handler](seatIndex, action);
+    return this.log.slice(before);
+  }
+
+  doDraw(seatIndex, action) {
+    const seat = this.seats[seatIndex];
+    for (let i = 0; i < action.n; i++) {
+      const c = this._draw();
+      if (c) seat.hand.push(c);
+    }
+    this._emit('drew', { seat: seatIndex, n: action.n });
+    if (this.phase === 'attack_draw') {
+      this.owed = action.n;
+      this.phase = 'attack';
+      if (!this._playableAttacks(seat, this.owed <= 1).length) this._concede();
+    } else {
+      this.defOwed = action.n;
+      this.phase = 'defense';
+    }
+  }
+
+  doAttack(seatIndex, action) {
+    const seat = this.seats[seatIndex];
+    if (action.type === 'concede_possession') { this._concede(); return; }
+    const card = seat.find(action.card_id);
+    const face = action.face;
+
+    if (action.type === 'special') {
+      this._burn(seat, card);
+      if (face === 'END_MATCH') this._endMatch(seatIndex);
+      else this._reshuffle(seat);
+      return;
+    }
+
+    this._burn(seat, card);
+    this.chain.push(face);
+    this.owed -= 1;
+    this._emit('attack_played', { seat: seatIndex, face });
+    if (face === 'PENALTY') seat.fouled = false;
+
+    // A shot always closes the chain and is always defended.
+    if (SHOT_STAGE.has(face)) {
+      this._burnOwed(seatIndex, this.owed);
+      this.owed = 0;
+      this.phase = this._openDefense();
+      return;
+    }
+
+    if (this._strategy() && this.owed > 0) {
+      this._emit('chain_passed', { face });
+      if (!this._playableAttacks(seat, this.owed <= 1).length) {
+        this._burnOwed(seatIndex, this.owed);
+        this.owed = 0;
+        this.phase = this._openDefense();
+      }
+      return;
+    }
+
+    this.phase = this._openDefense();
+  }
+
+  doDefense(seatIndex, action) {
+    const seat = this.seats[seatIndex];
+    const card = seat.find(action.card_id);
+    const face = action.face;
+    const target = this.chain[this.chain.length - 1];
+    this._burn(seat, card);
+    this.defOwed -= 1;
+    const stopped = (COUNTERS[face] || new Set()).has(target);
+    this._emit('defense_played', { seat: seatIndex, face, stopped });
+
+    if (stopped) { this._resolveStopped(face, seatIndex); return; }
+    if (this.defOwed > 0) return;   // keep trying with the next drawn card
+
+    if (SHOT_STAGE.has(target)) {
+      this._shotSucceeded(seatIndex);
+    } else {
+      this._emit('stage_passed', { face: target });
+      this._refillAll();
+      if (this._strategy()) {
+        this.phase = 'attack_draw';
+      } else {
+        this.phase = 'attack';
+        const c = this._draw();
+        if (c) this.seats[this.possession].hand.push(c);
+        this.owed = 1;
+        if (!this._playableAttacks(this.seats[this.possession], true).length) this._concede();
+      }
+    }
+  }
+
+  _resolveStopped(face, defSeat) {
+    const outcome = POSSESSION[face] || 'neutral';
+    if (face === 'FOUL') this.seats[this.possession].fouled = true;
+
+    if (outcome === 'defender') {
+      this.possession = this._partner(defSeat);
+      // Strategy: whatever the defender has left becomes a counter-attack
+      if (this._strategy() && this.defOwed > 0 && this.n === 2) {
+        this._refillAll();
+        this.owed = this.defOwed;
+        this.defOwed = 0;
+        this.chain = [];
+        this.defender = this._next(this.possession);
+        this._emit('counter_attack', { seat: this.possession, cards: this.owed });
+        this.phase = 'attack';
+        if (!this._playableAttacks(this.seats[this.possession], this.owed <= 1).length) {
+          this._concede();
+        }
+        return;
+      }
+    } else if (outcome !== 'attacker') {
+      this.possession = this._nextWithAttack(this._next(defSeat));
+    }
+    this._burnOwed(defSeat, this.defOwed);
+    this.defOwed = 0;
+    this._refillAll();
+    this.phase = this._openAttack();
+  }
+
+  _shotSucceeded(defSeat) {
+    this._burnOwed(defSeat, this.defOwed);
+    this.defOwed = 0;
+    if (this.seats[defSeat].has('OWN_GOAL')) {
+      this.pending = { seat: defSeat, reason: 'shot', face: this.chain[this.chain.length - 1] };
+      this.phase = 'react_own_goal';
+      return;
+    }
+    this._score(this.possession, this.chain[this.chain.length - 1]);
+  }
+
+  doOwnGoal(seatIndex, action) {
+    if (action.type === 'pass') {
+      this.pending = null;
+      this._score(this.possession, this.chain[this.chain.length - 1]);
+      return;
+    }
+    const seat = this.seats[seatIndex];
+    this._burn(seat, seat.find(action.card_id));
+    this._emit('own_goal_played', { seat: seatIndex });
+    this.pending = null;
+    this._score(seatIndex, 'OWN_GOAL', this.possession);
+  }
+
+  _score(scorer, face, conceder = null) {
+    const c = conceder === null ? this._next(scorer) : conceder;
+    this.score[this.team(scorer)] += 1;
+    const ev = this._emit('goal', {
+      scorer, face, conceder: c, score: [...this.score],
+    });
+    const victim = this._nextOfTeam(this._next(scorer), this.team(c));
+    if (this.seats[victim].has('VAR')) {
+      this.pending = { seat: victim, reason: 'goal', event: ev.id, scorer, conceder: c };
+      this.phase = 'react_var';
+      return;
+    }
+    this._afterGoal(c);
+  }
+
+  doVar(seatIndex, action) {
+    const p = this.pending;
+    if (action.type === 'pass') {
+      this.pending = null;
+      this._afterGoal(p.conceder);
+      return;
+    }
+    const seat = this.seats[seatIndex];
+    this._burn(seat, seat.find(action.card_id));
+    const flip = this.rng.pick(['heads', 'tails']);
+    // heads confirms the decision, tails overturns it
+    const overturned = flip === 'tails';
+    this._emit('var', {
+      seat: seatIndex, call: action.call, flip, overturned,
+      confirmed: flip === action.call,
+    });
+    if (overturned) {
+      this.score[this.team(p.scorer)] -= 1;
+      this._emit('goal_overturned', { scorer: p.scorer, score: [...this.score] });
+    }
+    this.pending = null;
+    this._afterGoal(p.conceder);
+  }
+
+  _afterGoal(conceder) {
+    this._refillAll();
+    for (const t of [0, 1]) {
+      if (this.score[t] >= GOALS_TO_WIN) {
+        this.over = true;
+        this.winner = t;
+        this.phase = 'over';
+        this._emit('match_over', { winner: t, reason: 'goals', score: [...this.score] });
+        return;
+      }
+    }
+    this.possession = this._nextOfTeam(this._next(this.defender), this.team(conceder));
+    this.phase = this._openAttack();
+  }
+
+  // ------------------------------------------------------------- misc
+
+  _nextWithAttack(start) {
+    for (let k = 0; k < this.n; k++) {
+      const i = (start + k) % this.n;
+      if (this._playableAttacks(this.seats[i], true).length) return i;
+    }
+    return start;
+  }
+
+  _nextOfTeam(start, team) {
+    for (let k = 0; k < this.n; k++) {
+      const i = (start + k) % this.n;
+      if (this.team(i) === team) return i;
+    }
+    return start;
+  }
+
+  _concede() {
+    this._emit('possession_conceded', { seat: this.possession });
+    this._burnOwed(this.possession, this.owed);
+    this.owed = 0;
+    this.defOwed = 0;
+    this._refillAll();
+    this.possession = this._next(this.possession);
+    this.phase = this._openAttack();
+  }
+
+  _reshuffle(seat) {
+    for (let i = 0; i < 2; i++) {
+      if (seat.hand.length) this._burn(seat, seat.hand[this.rng.int(seat.hand.length)]);
+    }
+    this._refill(seat);
+    this._emit('reshuffled', { seat: seat.index });
+  }
+
+  _endMatch(seatIndex) {
+    const mine = this.team(seatIndex);
+    const theirs = 1 - mine;
+    // level scores hand the win to the opponent
+    this.winner = this.score[mine] > this.score[theirs] ? mine : theirs;
+    this.over = true;
+    this.phase = 'over';
+    this._emit('match_over', {
+      winner: this.winner, reason: 'end_match', played_by: seatIndex, score: [...this.score],
+    });
+  }
+}
+
+// ----------------------------------------------------------------- bot
+
+const PRIORITY = ['SUPER_SHOT', 'PENALTY', 'SHOT_GOAL', 'GOAL', 'DRIBBLE', 'PASS', 'ASSIST'];
+function botAction(game, seatIndex, policy = 'SHOOTER') {
+  const acts = game.legalActions(seatIndex);
+  if (!acts.length) return null;
+  const kinds = new Set(acts.map(a => a.type));
+
+  if (kinds.has('draw')) return { type: 'draw', n: 1 };
+
+  if (game.phase === 'react_own_goal') {
+    return acts.find(a => a.face === 'OWN_GOAL') || { type: 'pass' };
+  }
+  if (game.phase === 'react_var') {
+    return acts.find(a => a.face === 'VAR' && a.call === 'heads') || { type: 'pass' };
+  }
+
+  if (game.phase === 'defense') {
+    const good = acts.filter(a => a.counters);
+    if (good.length) {
+      good.sort((a, b) =>
+        (POSSESSION[a.face] === 'defender' ? 0 : 1) - (POSSESSION[b.face] === 'defender' ? 0 : 1));
+      return good[0];
+    }
+    return [...acts].sort((a, b) =>
+      (PRIORITY.includes(a.face) ? 1 : 0) - (PRIORITY.includes(b.face) ? 1 : 0))[0];
+  }
+
+  const ahead = game.score[game.team(seatIndex)] > game.score[1 - game.team(seatIndex)];
+  const endMatch = acts.find(a => a.face === 'END_MATCH');
+  if (endMatch && ahead) return endMatch;
+
+  const plays = acts.filter(a => a.type === 'play');
+  if (!plays.length) {
+    return acts.find(a => a.face === 'RESHUFFLE') || acts[0];
+  }
+
+  let order = PRIORITY;
+  if (policy === 'PATIENT') {
+    const shots = plays.filter(a => SHOT_STAGE.has(a.face));
+    const builds = plays.filter(a => !SHOT_STAGE.has(a.face));
+    if (shots.length && builds.length) order = ['ASSIST', 'PASS', 'DRIBBLE', ...PRIORITY];
+  }
+  const rank = f => (order.indexOf(f) === -1 ? 99 : order.indexOf(f));
+  plays.sort((a, b) => rank(a.face) - rank(b.face));
+  return plays[0];
+}
+
+
+class Room {
+  constructor({onView, onLobby, onError}) {
+    Object.assign(this, {onView, onLobby, onError});
+    this.game = null; this.seat = 0;
+  }
+  async create(mode, fmt, name) {
+    if (fmt !== 'bot') {
+      this.onError('النسخة المحلية دي ضد البوت بس.\n' +
+        'اللعب مع صاحبك محتاج الموقع مرفوع — راجع web/README.md');
+      return null;
+    }
+    this.game = new Game({mode, matchType: 'ONE_V_ONE', names: [name || 'انت', 'البوت']});
+    this.onLobby({code: 'BOT', started: true, size: 1, players: [
+      {seat: 0, name: name || 'انت', bot: false}, {seat: 1, name: 'البوت', bot: true}]});
+    this._publish(); this._runBot();
+    return 'BOT';
+  }
+  async join() { this.onError('الدخول بكود محتاج الموقع مرفوع'); return null; }
+  _publish() { if (this.game) this.onView(this.game.view(this.seat)); }
+  _runBot() {
+    const step = () => {
+      if (!this.game || this.game.over) return;
+      const actor = this.game.seats.map(s => s.index)
+        .find(i => this.game.legalActions(i).length);
+      if (actor === undefined || actor === this.seat) return;
+      const a = botAction(this.game, actor);
+      if (!a) return;
+      this.game.apply(actor, a);
+      this._publish();
+      setTimeout(step, 700);
+    };
+    setTimeout(step, 700);
+  }
+  submit(action) {
+    if (!this.game) return;
+    try { this.game.apply(this.seat, action); }
+    catch (e) { console.warn('illegal', e.message); this._publish(); return; }
+    this._publish(); this._runBot();
+  }
+  rematch() {
+    const names = this.game.seats.map(s => s.name);
+    this.game = new Game({mode: this.game.mode, matchType: 'ONE_V_ONE', names});
+    this._publish(); this._runBot();
+  }
+}
+
+
+
+const $ = id => document.getElementById(id);
+let room = null, view = null, fmt = 'bot', mode = 'LUCK', picked = null;
+
+const AR = f => (CARDS[f]?.ar) || f;
+const KIND = f => (CARDS[f]?.kind) || 'special';
+const icon = (face, px) => `<svg width="${px}" height="${px}" viewBox="0 0 40 44" fill="none"
+  stroke="${GLOW[KIND(face)] || '#fff'}" stroke-width="2.6" stroke-linecap="round"
+  stroke-linejoin="round">${ICONS[face] || ''}</svg>`;
+
+document.querySelectorAll('[data-fmt]').forEach(b => b.onclick = () => {
+  document.querySelectorAll('[data-fmt]').forEach(x => x.classList.remove('on'));
+  b.classList.add('on'); fmt = b.dataset.fmt;
+});
+document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
+  document.querySelectorAll('[data-mode]').forEach(x => x.classList.remove('on'));
+  b.classList.add('on'); mode = b.dataset.mode;
+});
+
+function makeRoom() {
+  return new Room({
+    onView: v => { view = v; $('waiting').classList.add('hide');
+                   $('game').classList.remove('hide'); render(); },
+    onLobby: info => {
+      $('roomcode').textContent = info.code;
+      localStorage.setItem('og_code', info.code);
+      $('lobby').classList.add('hide');
+      if (!info.started) $('waiting').classList.remove('hide');
+      $('lobbylist').innerHTML = '<h2>اللاعبين</h2>' + info.players.map(p =>
+        `<div class="row" style="margin:0 0 6px"><span>${p.name}${p.bot ? ' 🤖' : ''}</span>
+         <span class="pill live">${p.bot ? 'بوت' : 'موجود'}</span></div>`).join('') +
+        `<div class="hint">مستني ${info.size - info.players.length} لاعب كمان</div>`;
+    },
+    onError: msg => { alert(msg); $('lobby').classList.remove('hide');
+                      $('waiting').classList.add('hide'); },
+  });
+}
+
+$('create').onclick = async () => {
+  const name = $('name').value.trim() || 'لاعب';
+  room = makeRoom();
+  try { await room.create(mode, fmt, name); }
+  catch (e) { alert('مشكلة في الاتصال بـ Firebase: ' + e.message); }
+};
+
+$('join').onclick = async () => {
+  const c = $('joincode').value.trim().toUpperCase();
+  if (c.length !== 5) return alert('الكود 5 حروف');
+  room = makeRoom();
+  try { await room.join(c, $('name').value.trim() || 'لاعب'); }
+  catch (e) { alert('مشكلة في الاتصال بـ Firebase: ' + e.message); }
+};
+
+const PHASE_TEXT = {
+  attack_draw: ['اسحب كام كارت؟', 'وتلعب نفس العدد بالظبط'],
+  attack: ['دورك تهجم', 'الشوطة لازم تكون آخر كارت في السلسلة'],
+  defense_draw: ['اسحب كام كارت للدفاع؟', 'أول كارت يكسر الاستحواذ، والباقي يبقى مرتدتك'],
+  defense: ['رد على الهجمة', 'لازم تلعب كارت حتى لو مالكش رد'],
+  react_own_goal: ['الشوطة عدّت! معاك Own Goal', 'تلعبه؟ النقطة تتحسب لك'],
+  react_var: ['اتسجل هدف — معاك VAR', 'اختار وش أو ضهر: ضهر يلغي الهدف'],
+};
+
+function render() {
+  const v = view;
+  $('score').textContent = `${v.score[0]} — ${v.score[1]}`;
+  $('names').textContent = v.seats.map(s =>
+    `${s.name}${s.index === v.you ? ' (انت)' : ''} · ${s.cards}`).join(' | ');
+  $('deckinfo').textContent = `الديك ${v.deck_left} · الهدف ${v.goals_to_win} أهداف`;
+
+  const mine = v.legal.length > 0;
+  $('turnpill').textContent = mine ? 'دورك' : 'مستني';
+  $('turnpill').className = 'pill' + (mine ? ' live' : '');
+
+  const p = PHASE_TEXT[v.phase] || ['—', ''];
+  $('prompt').className = 'prompt' + (mine ? ' mine' : '');
+  $('prompt').innerHTML = mine ? `${p[0]}<small>${p[1]}</small>`
+    : `الاستحواذ مع ${v.seats[v.possession]?.name || ''}<small>مستني اللاعب التاني</small>`;
+
+  $('chain').innerHTML = v.chain.length ? v.chain.map(f =>
+    `<span class="chip ${['SHOT_GOAL','SUPER_SHOT','GOAL','PENALTY'].includes(f) ? 'shot' : ''}">
+      ${AR(f)}</span>`).join('')
+    : '<span class="chip" style="opacity:.4">مفيش سلسلة شغالة</span>';
+
+  $('feed').innerHTML = (v.log || []).slice(-6).reverse().map(logLine).filter(Boolean).join('<br>');
+
+  const draws = v.legal.filter(a => a.type === 'draw');
+  if (draws.length) {
+    $('draws').classList.remove('hide');
+    $('draws').innerHTML = draws.map(a =>
+      `<button data-n="${a.n}"><b>${a.n}</b>${a.n === 1 ? 'كارت' : 'كروت'}</button>`).join('');
+    $('draws').querySelectorAll('button').forEach(b => b.onclick = () =>
+      room.submit({type: 'draw', n: +b.dataset.n}));
+  } else $('draws').classList.add('hide');
+
+  renderHand();
+
+  if (v.over) {
+    const meTeam = v.you % 2;
+    $('over').classList.remove('hide');
+    $('over').innerHTML =
+      `<div class="big" style="color:${v.winner === meTeam ? 'var(--defense-glow)' : 'var(--attack-glow)'}">
+        ${v.winner === meTeam ? 'كسبت' : 'خسرت'}</div>
+       <div class="hint">${v.score[0]} — ${v.score[1]}</div>
+       <button class="go" id="again" style="margin-top:14px">ماتش تاني</button>`;
+    $('again').onclick = () => { $('over').classList.add('hide'); room.rematch(); };
+  } else $('over').classList.add('hide');
+}
+
+function logLine(e) {
+  const n = s => view.seats[s]?.name || '';
+  switch (e.kind) {
+    case 'attack_played':  return `<b>${n(e.seat)}</b> لعب ${AR(e.face)}`;
+    case 'defense_played': return `<b>${n(e.seat)}</b> رد بـ ${AR(e.face)}` +
+      (e.stopped ? ' — وقفها' : ' — مظبطتش');
+    case 'goal':           return `⚽ <b>${n(e.scorer)}</b> سجل! ${e.score[0]} — ${e.score[1]}`;
+    case 'goal_overturned':return `❌ الهدف اتلغى بالـ VAR`;
+    case 'var':            return `📺 VAR: ${e.flip === 'heads' ? 'وش' : 'ضهر'}`;
+    case 'own_goal_played':return `🔄 <b>${n(e.seat)}</b> لعب أون جول`;
+    case 'counter_attack': return `⚡ <b>${n(e.seat)}</b> بيرتد بـ ${e.cards} كروت`;
+    case 'possession_conceded': return `<b>${n(e.seat)}</b> سلّم الاستحواذ`;
+    case 'chain_passed':   return `${AR(e.face)} عدّت بلا رد`;
+    case 'reshuffled':     return `<b>${n(e.seat)}</b> بدّل كروت`;
+    case 'match_over':     return `🏁 الماتش خلص`;
+    default: return '';
+  }
+}
+
+function renderHand() {
+  const v = view, box = $('hand');
+  box.innerHTML = '';
+  v.hand.forEach(c => {
+    const acts = v.legal.filter(a => a.card_id === c.id);
+    const face = acts[0]?.face || c.faces[0];
+    const kind = KIND(face);
+    const d = CARDS[face] || {ar: face, en: face, line: ''};
+    const el = document.createElement('div');
+    el.className = `card ${kind}` + (acts.length ? '' : ' dead');
+    el.innerHTML = (acts.some(a => a.counters) ? '<span class="tick">✓ رد صح</span>' : '') +
+      `<div class="en">${d.en}</div><div class="ar">${d.ar}</div>
+       <div class="ico">${icon(face, 34)}</div>
+       <div class="ln">${d.line || ''}</div>
+       <div class="bar" style="background:${FAMILY[kind]}"></div>`;
+    if (acts.length) {
+      el.onclick = () => {
+        if (acts.length === 1) return submit(acts[0]);
+        picked = picked === c.id ? null : c.id;
+        renderHand();
+      };
+      if (picked === c.id) {
+        el.classList.add('pick');
+        const dual = document.createElement('div');
+        dual.className = 'dual';
+        acts.forEach(a => {
+          const b = document.createElement('button');
+          b.textContent = a.call ? (a.call === 'heads' ? 'وش' : 'ضهر') : AR(a.face);
+          b.onclick = ev => { ev.stopPropagation(); submit(a); };
+          dual.appendChild(b);
+        });
+        el.appendChild(dual);
+      }
+    }
+    box.appendChild(el);
+  });
+
+  v.legal.filter(a => ['pass','concede_possession'].includes(a.type)).forEach(a => {
+    const b = document.createElement('div');
+    b.className = 'card special';
+    b.innerHTML = `<div class="en">SKIP</div>
+      <div class="ar">${a.type === 'pass' ? 'سيبها' : 'سلّم الكورة'}</div>
+      <div class="ico">${icon('CHAIN', 30)}</div>
+      <div class="ln">${a.type === 'pass' ? 'متلعبش الكارت' : 'مفيش كارت هجومي'}</div>
+      <div class="bar" style="background:var(--special)"></div>`;
+    b.onclick = () => submit(a);
+    box.appendChild(b);
+  });
+}
+
+function submit(a) {
+  picked = null;
+  const {counters, ...action} = a;
+  room.submit(action);
+}
+
+const last = localStorage.getItem('og_code');
+if (last && last !== 'BOT') {
+  $('joincode').value = last;
+  $('join').textContent = `ارجع لأوضة ${last}`;
+}
+
+</script>
+</body>
+</html>

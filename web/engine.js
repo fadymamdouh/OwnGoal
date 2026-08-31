@@ -13,14 +13,14 @@ import { RULES } from './rules.js';
 const COUNTERS = {};
 for (const c of RULES.counters) COUNTERS[c.defense] = new Set(c.stops);
 const POSSESSION = RULES.possession_after_successful_defense;
-const CARDS = RULES.cards;
+const CARD_RULES = RULES.cards;   // rules metadata, not the display text
 export const GOALS_TO_WIN = RULES.match.goals_to_win;
 export const HAND = RULES.match.hand_size;
 
 const SHOT_STAGE = new Set(
-  Object.entries(CARDS).filter(([, c]) => c.stage === 'shot').map(([f]) => f));
+  Object.entries(CARD_RULES).filter(([, c]) => c.stage === 'shot').map(([f]) => f));
 const DEFENSE_FACES = new Set([
-  ...Object.entries(CARDS).filter(([, c]) => c.class === 'defense').map(([f]) => f),
+  ...Object.entries(CARD_RULES).filter(([, c]) => c.class === 'defense').map(([f]) => f),
   'CHAIN',
 ]);
 
@@ -42,7 +42,7 @@ function makeRng(seed) {
 }
 
 const faceOfClass = (card, klass) =>
-  card.faces.find(f => CARDS[f].class === klass) || null;
+  card.faces.find(f => CARD_RULES[f].class === klass) || null;
 
 class Seat {
   constructor(index, name) {

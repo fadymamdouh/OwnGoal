@@ -127,7 +127,7 @@ Full detail is in rules.json; this is orientation only.
 | `web/engine.js` | The browser port of the engine (static/Firebase build) |
 | `web/test-engine.mjs` | `node web/test-engine.mjs` after any change to either engine |
 | `web/net.js` | Firebase room layer — host-as-referee model |
-| `web/index.html` | The static client (GitHub Pages entry point) |
+| `web/index.html` | The static client — GitHub Pages entry point, uses Firebase |
 | `database.rules.json` | Firebase security rules — must be published in the console |
 | `web/README.md` | How the static build is deployed and how it works |
 | `scripts/build_offline.py` | Rebuilds `owngoal-offline.html` — run after any web/ change |
@@ -185,6 +185,12 @@ separate origin and refuses every import between them. So local testing by
 double-click needs `scripts/build_offline.py`, which inlines everything into a
 single classic-script HTML file (`owngoal-offline.html`, bot play only). Never
 tell the user to just open `web/index.html` from disk; it cannot work.
+
+There are TWO clients and they are easy to confuse. `static/index.html` belongs to
+the Python server and connects to `/ws` — putting it on a static host produces
+`WebSocket connection to wss://.../ws failed`. `web/index.html` is the Firebase
+one and is the only client that works on GitHub Pages. The repo root carries an
+`index.html` that redirects to `web/` so the bare Pages URL lands correctly.
 
 This build exists because free always-on hosting for a Python WebSocket server
 requires a card, while GitHub Pages plus Firebase's Spark plan requires neither.

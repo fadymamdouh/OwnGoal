@@ -168,14 +168,14 @@ input::placeholder{color:#55525f}
 /* ---------- the table ---------- */
 .table{margin-top:10px;border-radius:16px;position:relative;
   background:radial-gradient(ellipse at 50% 40%,#123021 0%,#0c1f16 62%,#08150f 100%);
-  border:1px solid #1c3a28;min-height:160px;overflow:hidden;padding:10px 0 74px}
+  border:1px solid #1c3a28;min-height:96px;overflow:hidden;padding:10px 0 74px}
 .table::before{content:'';position:absolute;left:50%;top:0;bottom:0;width:1px;
   background:#ffffff14}
 
 /* Every card played stays on the table. Only the last two are legible; older
    ones collapse to a sliver you can scroll back through. */
 .hist{display:flex;align-items:center;overflow-x:auto;padding:4px 12px 6px;
-  min-height:86px;position:relative;z-index:2}
+  min-height:86px;position:relative;z-index:2;scroll-behavior:smooth}
 .hist::-webkit-scrollbar{display:none}
 .hcard{width:54px;height:76px;border-radius:8px;border:1px solid #232338;
   flex:0 0 auto;display:flex;flex-direction:column;align-items:center;
@@ -309,6 +309,20 @@ input::placeholder{color:#55525f}
 .over{text-align:center;padding:22px 12px}
 .over .big{font-family:'Rakkas',cursive;font-size:40px;line-height:1.1}
 .hide{display:none!important}
+/* ---------- scrollbars — themed to match the dark UI ---------- */
+/* Firefox */
+.gplay,.gside,.feed{ scrollbar-width:thin; scrollbar-color:#2a2140 transparent }
+/* Webkit / Blink */
+.gplay::-webkit-scrollbar,.gside::-webkit-scrollbar,.feed::-webkit-scrollbar{width:5px}
+.gplay::-webkit-scrollbar-track,.gside::-webkit-scrollbar-track,.feed::-webkit-scrollbar-track{background:transparent}
+.gplay::-webkit-scrollbar-thumb,.gside::-webkit-scrollbar-thumb,.feed::-webkit-scrollbar-thumb{background:#2a2140;border-radius:3px}
+.gplay::-webkit-scrollbar-thumb:hover,.feed::-webkit-scrollbar-thumb:hover{background:#3d3060}
+/* Phone: page scrollbar */
+html{ scrollbar-width:thin; scrollbar-color:#2a2140 transparent }
+html::-webkit-scrollbar{width:5px}
+html::-webkit-scrollbar-track{background:transparent}
+html::-webkit-scrollbar-thumb{background:#2a2140;border-radius:3px}
+
 /* ---------- desktop: three columns instead of one tall scroll ---------- */
 @media (min-width:1000px){
   /* During a match the page itself does not scroll — the whole board fits the
@@ -339,6 +353,12 @@ input::placeholder{color:#55525f}
      tall and a flex child will happily shrink to nothing — on a 600px-high
      window the hand collapsed to 32px. The column scrolls instead. */
   .gplay > *{flex:0 0 auto}
+  /* the table fills the remaining vertical space in the play column; the other
+     elements are fixed-height and the table is the one that can give */
+  .table{flex:1 1 0;min-height:96px}
+  /* let the hist strip start at zero so the flex algorithm can give the table
+     the right size — on mobile the 86px floor is still wanted */
+  .hist{min-height:0}
   .comm{grid-area:comm;margin-top:0;min-height:0;
     display:flex;flex-direction:column}
   .gside{grid-area:side;min-height:0;overflow-y:auto}
@@ -346,7 +366,7 @@ input::placeholder{color:#55525f}
   .commhead{flex:0 0 auto}
   .feed{max-height:none;flex:1 1 auto;min-height:0;overflow-y:auto}
   /* more room for the table and the hand */
-  .table{min-height:250px}
+  /* .table min-height is handled by flex:1 above */
   .hand{padding-bottom:20px}
   .bnum{font-size:34px;padding:5px 18px}
   .crest{width:44px;height:44px;font-size:22px}

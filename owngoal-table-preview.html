@@ -509,6 +509,7 @@ class Game {
     this.chain = [];
     this.owed = 0;
     this.defOwed = 0;
+    this.noVarReview = false;   // set when a goal has already had its VAR review
     this.pending = null;
     this.over = false;
     this.winner = null;
@@ -671,6 +672,12 @@ class Game {
     if (this.phase === 'defense' && seatIndex === this.defender) {
       const target = this.chain[this.chain.length - 1];
       for (const c of me.hand) {
+        // VAR answers a Goal or a Penalty as a review — the caller picks a side
+        if (c.faces.includes('VAR') && (COUNTERS.VAR || new Set()).has(target)) {
+          acts.push({ type: 'play', card_id: c.id, face: 'VAR', call: 'heads', counters: true });
+          acts.push({ type: 'play', card_id: c.id, face: 'VAR', call: 'tails', counters: true });
+          continue;
+        }
         let f = faceOfClass(c, 'defense');
         if (!f && c.faces.includes('CHAIN')) f = 'CHAIN';
         if (f && DEFENSE_FACES.has(f)) {
@@ -796,7 +803,43 @@ class Game {
     const target = this.chain[this.chain.length - 1];
     this._burn(seat, card);
     this.defOwed -= 1;
-    const stopped = (COUNTERS[face] || new Set()).has(target);
+    const answers = (COUNTERS[face] || new Set()).has(target);
+
+    /* Own Goal does NOT stop a scoring card — it flips it. The point goes to
+       the defender and the ball to the attacker. Same resolution as the
+       react_own_goal path, so it no longer matters whether the defender plays
+       it directly or burns a card first. (rulebook: Own Goal) */
+    if (face === 'OWN_GOAL' && answers) {
+      this._emit('defense_played', { seat: seatIndex, face, stopped: false });
+      this._burnOwed(seatIndex, this.defOwed);
+      this.defOwed = 0;
+      this._emit('own_goal_played', { seat: seatIndex });
+      this._score(seatIndex, 'OWN_GOAL', this.possession);
+      return;
+    }
+
+    /* VAR is a coin-flip review, never a duel: tails overturns the decision,
+       heads confirms it. The caller picks a side first, which is recorded but
+       does not change the outcome. One review per event, so a confirmed goal
+       cannot then be reviewed again from the react_var phase.
+       (rulebook: VAR) */
+    if (face === 'VAR' && answers) {
+      this._burnOwed(seatIndex, this.defOwed);
+      this.defOwed = 0;
+      const flip = this.rng.pick(['heads', 'tails']);
+      const overturned = flip === 'tails';
+      this._emit('var', {
+        seat: seatIndex, call: action.call, flip, overturned,
+        confirmed: flip === action.call, reviewing: target,
+      });
+      this._emit('defense_played', { seat: seatIndex, face, stopped: overturned });
+      if (overturned) { this._resolveStopped('VAR', seatIndex); return; }
+      this.noVarReview = true;     // this event has had its one review
+      this._shotSucceeded(seatIndex);
+      return;
+    }
+
+    const stopped = answers;
     this._emit('defense_played', { seat: seatIndex, face, stopped });
 
     if (stopped) { this._resolveStopped(face, seatIndex); return; }
@@ -879,7 +922,9 @@ class Game {
       scorer, face, conceder: c, score: [...this.score],
     });
     const victim = this._nextOfTeam(this._next(scorer), this.team(c));
-    if (this.seats[victim].has('VAR')) {
+    const reviewed = this.noVarReview;   // already reviewed during the defense
+    this.noVarReview = false;
+    if (!reviewed && this.seats[victim].has('VAR')) {
       this.pending = { seat: victim, reason: 'goal', event: ev.id, scorer, conceder: c };
       this.phase = 'react_var';
       return;

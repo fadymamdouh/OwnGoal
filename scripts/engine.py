@@ -101,6 +101,7 @@ class Game:
         self.chain: list[str] = []      # faces played this attack, in order
         self.owed = 0                   # cards still to be played this turn
         self.def_owed = 0
+        self.no_var_review = False  # set when a goal already had its VAR review
         self.pending = None             # payload for a reaction phase
         self.over = False
         self.winner = None
@@ -264,6 +265,13 @@ class Game:
         if self.phase == "defense" and seat_i == self.defender:
             target = self.chain[-1]
             for c in me.hand:
+                # VAR answers a Goal or a Penalty as a review, caller picks a side
+                if "VAR" in c.faces and target in COUNTERS.get("VAR", set()):
+                    for call in ("heads", "tails"):
+                        acts.append({"type": "play", "card_id": c.id,
+                                     "face": "VAR", "call": call,
+                                     "counters": True})
+                    continue
                 f = c.face_of_class("defense") or ("CHAIN" if "CHAIN" in c.faces else None)
                 if f and f in DEFENSE_FACES:
                     valid = target in COUNTERS.get(f, set())
@@ -380,7 +388,41 @@ class Game:
         target = self.chain[-1]
         self._burn(seat, card)
         self.def_owed -= 1
-        stopped = target in COUNTERS.get(face, set())
+        answers = target in COUNTERS.get(face, set())
+
+        # Own Goal does NOT stop a scoring card, it flips it: the point goes to
+        # the defender and the ball to the attacker. Same resolution as the
+        # react_own_goal path, so playing it directly is no longer a trap.
+        # (rulebook: Own Goal)
+        if face == "OWN_GOAL" and answers:
+            self._emit("defense_played", seat=seat_i, face=face, stopped=False)
+            self._burn_owed(seat_i, self.def_owed)
+            self.def_owed = 0
+            self._emit("own_goal_played", seat=seat_i)
+            self._score(seat_i, "OWN_GOAL", conceder=self.possession)
+            return
+
+        # VAR is a coin-flip review, never a duel: tails overturns, heads
+        # confirms. One review per event, so a confirmed goal cannot be
+        # reviewed a second time from react_var. (rulebook: VAR)
+        if face == "VAR" and answers:
+            self._burn_owed(seat_i, self.def_owed)
+            self.def_owed = 0
+            flip = self.rng.choice(["heads", "tails"])
+            overturned = flip == "tails"
+            self._emit("var", seat=seat_i, call=action.get("call"), flip=flip,
+                       overturned=overturned, confirmed=flip == action.get("call"),
+                       reviewing=target)
+            self._emit("defense_played", seat=seat_i, face=face,
+                       stopped=overturned)
+            if overturned:
+                self._resolve_stopped("VAR", seat_i)
+                return
+            self.no_var_review = True
+            self._shot_succeeded(seat_i)
+            return
+
+        stopped = answers
         self._emit("defense_played", seat=seat_i, face=face, stopped=stopped)
 
         if stopped:
@@ -460,7 +502,9 @@ class Game:
         ev = self._emit("goal", scorer=scorer, face=face, conceder=conceder,
                         score=list(self.score))
         victim = self._next_of_team(self._next(scorer), self.team(conceder))
-        if any("VAR" in c.faces for c in self.seats[victim].hand):
+        reviewed = self.no_var_review      # already reviewed during the defense
+        self.no_var_review = False
+        if not reviewed and any("VAR" in c.faces for c in self.seats[victim].hand):
             self.pending = {"seat": victim, "reason": "goal", "event": ev["id"],
                             "scorer": scorer, "conceder": conceder}
             self.phase = "react_var"

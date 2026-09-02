@@ -55,19 +55,107 @@ input::placeholder{color:#55525f}
   background:#1a1226;border:1px solid #33244a;font-weight:700;font-size:15px;line-height:1.5}
 .prompt.mine{background:#1d0f10;border-color:#4a2226}
 .prompt small{display:block;color:var(--muted);font-size:12px;font-weight:600;margin-top:4px}
-.chain{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;min-height:34px;
-  align-items:center;margin-top:10px}
-.chip{font-size:11px;font-weight:700;padding:5px 9px;border-radius:8px;background:#15151f;
-  border:1px solid var(--line)}
-.chip.shot{border-color:var(--attack);color:var(--attack-glow)}
-.feed{margin-top:8px;max-height:82px;overflow-y:auto;font-size:12px;color:var(--muted);
+.feed{margin-top:8px;max-height:66px;overflow-y:auto;font-size:12px;color:var(--muted);
   line-height:1.75}
 .feed b{color:var(--ink);font-weight:700}
-.draws{display:flex;gap:8px;margin-top:10px}
-.draws button{flex:1;background:#15151f;border:1px solid var(--line);color:var(--ink);
-  border-radius:10px;padding:13px;font-size:15px;font-weight:700}
-.draws button b{display:block;font-family:'Oswald',sans-serif;font-size:22px;
-  color:var(--special-glow)}
+
+/* ---------- opponents: face-down fans ---------- */
+.oppzone{margin-top:10px;text-align:center}
+.fan{display:flex;justify-content:center;align-items:flex-end;gap:14px;
+  min-height:62px}
+.seatfan{display:flex;align-items:flex-end}
+.seatfan.mate{opacity:.8}
+.back{width:42px;height:58px;border-radius:7px;flex:0 0 auto;
+  background:repeating-linear-gradient(45deg,#1b1230 0 6px,#160f28 6px 12px);
+  border:1px solid #33244a;margin-inline-start:-18px;position:relative;
+  box-shadow:0 3px 9px #0007}
+.back:first-child{margin-inline-start:0}
+.back .crest{position:absolute;inset:0;display:flex;align-items:center;
+  justify-content:center;font-family:'Rakkas',cursive;font-size:14px;color:#3d2b63}
+.back.drawn{animation:dealin .32s ease-out}
+@keyframes dealin{from{transform:translateY(-24px) scale(.86);opacity:0}
+  to{transform:none;opacity:1}}
+
+/* ---------- the table ---------- */
+.table{margin-top:10px;border-radius:16px;position:relative;
+  background:radial-gradient(ellipse at 50% 40%,#123021 0%,#0c1f16 62%,#08150f 100%);
+  border:1px solid #1c3a28;min-height:160px;overflow:hidden;padding:10px 0 74px}
+.table::before{content:'';position:absolute;left:50%;top:0;bottom:0;width:1px;
+  background:#ffffff14}
+
+/* Every card played stays on the table. Only the last two are legible; older
+   ones collapse to a sliver you can scroll back through. */
+.hist{display:flex;align-items:center;overflow-x:auto;padding:4px 12px 6px;
+  min-height:86px;position:relative;z-index:2}
+.hist::-webkit-scrollbar{display:none}
+.hcard{width:54px;height:76px;border-radius:8px;border:1px solid #232338;
+  flex:0 0 auto;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:5px 3px;text-align:center;position:relative}
+.hcard.attack{background:linear-gradient(155deg,#2a0a0a,#0d0000)}
+.hcard.defense{background:linear-gradient(155deg,#040e1a,#030b14)}
+.hcard.special{background:linear-gradient(155deg,#130820,#070311)}
+.hcard.rare{background:linear-gradient(155deg,#241705,#0d0700)}
+.hcard .nm{font-family:'Rakkas',cursive;font-size:12px;line-height:1.05;margin-top:3px}
+.hcard .en{font-family:'Oswald',sans-serif;font-size:6px;letter-spacing:.14em;
+  color:var(--muted)}
+.hcard .by{position:absolute;bottom:2px;left:0;right:0;font-size:6.5px;
+  font-weight:700;color:var(--muted)}
+.hcard.mine{box-shadow:0 0 0 1px var(--attack-glow)}
+.hcard.theirs{box-shadow:0 0 0 1px var(--defense-glow)}
+.hcard + .hcard{margin-inline-start:6px}
+.hcard.old + .hcard.old,.hcard.old + .hcard{margin-inline-start:-38px}
+.hcard.old{opacity:.72}
+.hcard.old .nm,.hcard.old .en,.hcard.old .by{display:none}
+.hcard.old .edge{position:absolute;top:6px;bottom:6px;inset-inline-end:4px;
+  width:2px;border-radius:2px;background:#ffffff33}
+.hcard.fresh{animation:toTable .34s cubic-bezier(.22,1.2,.36,1) both}
+.hcard.freshflip{animation:flipin .46s ease-out both}
+@keyframes toTable{from{transform:translateY(76px) scale(.72) rotate(-7deg);opacity:0}
+  to{transform:none;opacity:1}}
+@keyframes flipin{0%{transform:translateY(-56px) rotateY(180deg) scale(.8);opacity:0}
+  60%{opacity:1}100%{transform:none;opacity:1}}
+.sep{flex:0 0 auto;width:1px;height:48px;background:#ffffff26;
+  margin-inline-start:8px;align-self:center}
+.gap{flex:0 0 auto;margin-inline-start:8px;align-self:center;color:#7a5c3a;
+  font-weight:900;font-size:13px;letter-spacing:.1em}
+.tablehint{position:absolute;top:44%;left:0;right:0;text-align:center;
+  font-size:10px;color:#5c7a68;font-weight:700;z-index:1}
+
+/* ---------- deck + discard ---------- */
+.deckpile,.discpile{position:absolute;bottom:9px;width:44px;height:60px;z-index:3}
+.deckpile{inset-inline-end:12px}
+.discpile{inset-inline-start:12px}
+.stk{position:absolute;inset:0;border-radius:7px;border:1px solid #33244a;
+  background:repeating-linear-gradient(45deg,#1b1230 0 5px,#160f28 5px 10px)}
+.stk:nth-child(2){transform:translate(2px,-2px)}
+.stk:nth-child(3){transform:translate(4px,-4px)}
+.cnt{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;z-index:4;pointer-events:none}
+.cnt b{font-family:'Oswald',sans-serif;font-size:16px;color:var(--ink)}
+.cnt span{font-size:8px;color:var(--muted);font-weight:700;margin-top:1px}
+.deckpile.can{cursor:pointer}
+.deckpile.can .stk:nth-child(3){box-shadow:0 0 0 1.5px var(--special-glow)}
+.deckpile.can::after{content:'اسحب';position:absolute;top:-16px;left:0;right:0;
+  text-align:center;font-size:10px;font-weight:900;color:var(--special-glow);
+  animation:puls 1s ease-in-out infinite}
+@keyframes puls{50%{opacity:.45}}
+.discpile .stk{background:repeating-linear-gradient(45deg,#241206 0 5px,#1b0d04 5px 10px);
+  border-color:#4a2a12}
+.drawpick{position:absolute;bottom:74px;inset-inline-end:6px;display:flex;gap:4px;z-index:6}
+.drawpick button{background:#15151f;border:1px solid var(--special-glow);
+  color:var(--ink);border-radius:8px;padding:7px 10px;font-size:13px;font-weight:700}
+.flyer{position:absolute;bottom:9px;inset-inline-end:12px;width:44px;height:60px;
+  border-radius:7px;z-index:7;border:1px solid #33244a;pointer-events:none;
+  background:repeating-linear-gradient(45deg,#1b1230 0 5px,#160f28 5px 10px);
+  animation:fly .5s cubic-bezier(.4,0,.6,1) forwards}
+@keyframes fly{0%{opacity:1}
+  100%{transform:translate(84px,160px) rotate(12deg) scale(.82);opacity:0}}
+/* a card dealt but not yet pulled off the deck (LUCK mode) */
+.card.facedown{background:repeating-linear-gradient(45deg,#1b1230 0 7px,#160f28 7px 14px)}
+.card.facedown .half,.card.facedown .splitmark{visibility:hidden}
+.card.facedown::after{content:'مستني السحب';position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;font-family:'Rakkas',cursive;
+  font-size:15px;color:#5b4488;text-align:center;padding:0 10px}
 
 /* ---------- hand ---------- */
 .hand{display:flex;gap:8px;overflow-x:auto;padding:12px 4px 18px;scroll-snap-type:x mandatory}
@@ -164,9 +252,27 @@ input::placeholder{color:#55525f}
       <div style="text-align:left"><span class="pill" id="turnpill">—</span>
         <div class="who" id="deckinfo" style="margin-top:4px">—</div></div>
     </div>
+
+    <div class="oppzone">
+      <div class="fan" id="fan"></div>
+      <div class="who" id="oppname">—</div>
+    </div>
+
+    <div class="table" id="table">
+      <div class="hist" id="hist"></div>
+      <div class="tablehint" id="tablehint">الطرابيزة فاضية</div>
+      <div class="discpile">
+        <div class="stk"></div><div class="stk"></div><div class="stk"></div>
+        <div class="cnt"><b id="discard">0</b><span>حرق</span></div>
+      </div>
+      <div class="deckpile" id="deckpile">
+        <div class="stk"></div><div class="stk"></div><div class="stk"></div>
+        <div class="cnt"><b id="deckleft">0</b><span>ديك</span></div>
+      </div>
+      <div class="drawpick hide" id="draws"></div>
+    </div>
+
     <div class="prompt" id="prompt">—</div>
-    <div class="chain" id="chain"></div>
-    <div class="draws hide" id="draws"></div>
     <div class="feed" id="feed"></div>
     <div class="hand" id="hand"></div>
     <div class="over hide" id="over"></div>
@@ -1008,10 +1114,96 @@ document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
   b.classList.add('on'); mode = b.dataset.mode;
 });
 
+/* ---------------------------------------------------------------- table state
+   The engine clears its chain the moment a possession resolves, and a guest
+   receives views over Firebase where intermediate states can coalesce. So the
+   table history is built from v.log — every view carries the last 12 events,
+   each with a monotonic id, and card plays name their seat:
+
+     attack_played  {seat, face}
+     defense_played {seat, face, stopped}
+     own_goal_played{seat}            -> OWN_GOAL
+     var            {seat, call, ...} -> VAR
+
+   Tracking the highest id already consumed means nothing is double-counted and
+   nothing inside the 12-event window is lost.                                */
+let log = [];           // [{face, seat} | {sep:true}]
+let lastEvent = 0;      // highest event id folded into log
+let drawnCount = 0;     // history entries already animated
+let pendingSep = false; // a possession ended; divide before the next card
+
+/* LUCK deals the card itself, so "pulling" is a UI gate: a newly arrived card
+   sits face-down and unplayable until the deck is tapped. No rules change. */
+let prevHand = [];
+let facedown = [];
+let busyDeck = false;
+
+const CARD_EVENTS = {
+  attack_played:   e => ({face: e.face, seat: e.seat}),
+  defense_played:  e => ({face: e.face, seat: e.seat}),
+  own_goal_played: e => ({face: 'OWN_GOAL', seat: e.seat}),
+  var:             e => ({face: 'VAR', seat: e.seat}),
+};
+const ENDS_POSSESSION = new Set([
+  'goal', 'goal_overturned', 'possession_conceded', 'counter_attack', 'match_over',
+]);
+
+/** Fold any unseen events from this view into the table history. */
+function foldEvents(v) {
+  const evs = (v.log || []).filter(e => e && typeof e.id === 'number');
+  if (!evs.length) return;
+
+  /* v.log is only the last 12 events. On a bad connection a guest can miss
+     more than that between updates, and those cards are simply gone — the
+     engine cannot be asked for them again. Same for a player who reconnects
+     mid-match. Rather than show a history that is quietly wrong, mark the
+     hole. A fresh match starts at id 1, so no marker appears there. */
+  const oldest = Math.min(...evs.map(e => e.id));
+  if (oldest > lastEvent + 1) log.push({gap: true});
+
+  for (const e of evs) {
+    if (e.id <= lastEvent) continue;
+    lastEvent = e.id;
+    const make = CARD_EVENTS[e.kind];
+    if (make) {
+      if (pendingSep) { log.push({sep: true}); pendingSep = false; }
+      log.push(make(e));
+    } else if (ENDS_POSSESSION.has(e.kind) && log.length) {
+      pendingSep = true;   // inserted lazily so the strip never ends on a line
+    }
+  }
+}
+
+/** Reset the table between matches. */
+function resetTable() {
+  log = []; lastEvent = 0; drawnCount = 0; pendingSep = false;
+  prevHand = []; facedown = []; busyDeck = false;
+  $('fan').innerHTML = '';
+  $('hist').innerHTML = '';
+}
+
 function makeRoom() {
   return new Room({
-    onView: v => { view = v; $('waiting').classList.add('hide');
-                   $('game').classList.remove('hide'); render(); },
+    onView: v => {
+      // rematch() builds a new Game, which resets eventId to 0. So if the
+      // highest id in this view is behind what we have already folded, the
+      // match restarted and the table starts over.
+      const maxId = Math.max(0, ...(v.log || []).map(e => (e && e.id) || 0));
+      if (maxId < lastEvent) resetTable();
+      foldEvents(v);
+
+      const ids = v.hand.map(c => c.id);
+      if (v.mode === 'LUCK' && prevHand.length) {
+        const fresh = ids.filter(id => !prevHand.includes(id));
+        if (fresh.length && v.legal.length) facedown = fresh;
+      }
+      prevHand = ids;
+
+      view = v;
+      $('waiting').classList.add('hide');
+      $('game').classList.remove('hide');
+      render();
+    },
     onLobby: info => {
       $('roomcode').textContent = info.code;
       localStorage.setItem('og_code', info.code);
@@ -1052,6 +1244,7 @@ async function exitRoom() {
   }
   room = null;
   view = null;
+  resetTable();
   localStorage.removeItem('og_code');
   $('game').classList.add('hide');
   $('waiting').classList.add('hide');
@@ -1075,33 +1268,26 @@ function render() {
   $('score').textContent = `${v.score[0]} — ${v.score[1]}`;
   $('names').textContent = v.seats.map(s =>
     `${s.name}${s.index === v.you ? ' (انت)' : ''} · ${s.cards}`).join(' | ');
-  $('deckinfo').textContent = `الديك ${v.deck_left} · الهدف ${v.goals_to_win} أهداف`;
+  $('deckinfo').textContent = `الهدف ${v.goals_to_win} أهداف`;
+  $('deckleft').textContent = v.deck_left;
+  $('discard').textContent = v.discard;
 
   const mine = v.legal.length > 0;
-  $('turnpill').textContent = mine ? 'دورك' : 'مستني';
+  $('turnpill').textContent = facedown.length ? 'اسحب' : (mine ? 'دورك' : 'مستني');
   $('turnpill').className = 'pill' + (mine ? ' live' : '');
 
-  const p = PHASE_TEXT[v.phase] || ['—', ''];
+  const p = facedown.length
+    ? ['دوس على الديك', 'الكارت في إيدك بس لسه مقلوب']
+    : (PHASE_TEXT[v.phase] || ['—', '']);
   $('prompt').className = 'prompt' + (mine ? ' mine' : '');
   $('prompt').innerHTML = mine ? `${p[0]}<small>${p[1]}</small>`
     : `الاستحواذ مع ${v.seats[v.possession]?.name || ''}<small>مستني اللاعب التاني</small>`;
 
-  $('chain').innerHTML = v.chain.length ? v.chain.map(f =>
-    `<span class="chip ${['SHOT_GOAL','SUPER_SHOT','GOAL','PENALTY'].includes(f) ? 'shot' : ''}">
-      ${AR(f)}</span>`).join('')
-    : '<span class="chip" style="opacity:.4">مفيش سلسلة شغالة</span>';
+  $('feed').innerHTML = (v.log || []).slice(-4).reverse().map(logLine).filter(Boolean).join('<br>');
 
-  $('feed').innerHTML = (v.log || []).slice(-6).reverse().map(logLine).filter(Boolean).join('<br>');
-
-  const draws = v.legal.filter(a => a.type === 'draw');
-  if (draws.length) {
-    $('draws').classList.remove('hide');
-    $('draws').innerHTML = draws.map(a =>
-      `<button data-n="${a.n}"><b>${a.n}</b>${a.n === 1 ? 'كارت' : 'كروت'}</button>`).join('');
-    $('draws').querySelectorAll('button').forEach(b => b.onclick = () =>
-      room.submit({type: 'draw', n: +b.dataset.n}));
-  } else $('draws').classList.add('hide');
-
+  renderFan();
+  renderTable();
+  renderDeck();
   renderHand();
 
   if (v.over) {
@@ -1112,7 +1298,11 @@ function render() {
         ${v.winner === meTeam ? 'كسبت' : 'خسرت'}</div>
        <div class="hint">${v.score[0]} — ${v.score[1]}</div>
        <button class="go" id="again" style="margin-top:14px">ماتش تاني</button>`;
-    $('again').onclick = () => { $('over').classList.add('hide'); room.rematch(); };
+    $('again').onclick = () => {
+      $('over').classList.add('hide');
+      resetTable();
+      room.rematch();
+    };
   } else $('over').classList.add('hide');
 }
 
@@ -1135,16 +1325,153 @@ function logLine(e) {
   }
 }
 
+/* Opponents and team-mates as face-down fans. Counts come from v.seats, which
+   carries hand SIZE and never contents — that is the privacy model. */
+function renderFan() {
+  const v = view, box = $('fan');
+  const others = v.seats.filter(s => s.index !== v.you);
+  const key = others.map(s => `${s.index}:${s.cards}`).join(',');
+  if (box.dataset.key !== key) {
+    box.innerHTML = '';
+    others.forEach(s => {
+      const mate = s.team === v.seats[v.you].team;
+      const wrap = document.createElement('div');
+      wrap.className = 'seatfan' + (mate ? ' mate' : '');
+      for (let i = 0; i < s.cards; i++) {
+        const b = document.createElement('div');
+        b.className = 'back drawn';
+        b.innerHTML = '<div class="crest">ج</div>';
+        wrap.appendChild(b);
+      }
+      box.appendChild(wrap);
+    });
+    box.dataset.key = key;
+  }
+  $('oppname').textContent = others.map(s =>
+    `${s.name}${s.team === v.seats[v.you].team ? ' (معاك)' : ''} · ${s.cards}`).join('  |  ');
+}
+
+/* The whole match history, newest last. Only the final two are legible; the
+   rest collapse into an overlapping pile that scrolls. */
+function renderTable() {
+  const box = $('hist');
+  box.innerHTML = '';
+  const cards = log.filter(e => !e.sep && !e.gap);
+  const cut = cards.length - 2;
+  let seen = 0;
+
+  log.forEach(e => {
+    if (e.sep) {
+      const d = document.createElement('div');
+      d.className = 'sep';
+      box.appendChild(d);
+      return;
+    }
+    if (e.gap) {
+      const d = document.createElement('div');
+      d.className = 'gap';
+      d.textContent = '···';
+      d.title = 'كروت اتلعبت وانت مش متصل';
+      box.appendChild(d);
+      return;
+    }
+    const idx = seen++;
+    const old = idx < cut;
+    const byMe = e.seat === view.you;
+    const el = document.createElement('div');
+    el.className = `hcard ${KIND(e.face)} ${byMe ? 'mine' : 'theirs'}` +
+      (old ? ' old' : '') +
+      (idx >= drawnCount ? (byMe ? ' fresh' : ' freshflip') : '');
+    el.innerHTML = old
+      ? `<div class="edge"></div>${icon(e.face, 15)}`
+      : `<div class="en">${(CARDS[e.face] || {}).en || e.face}</div>
+         <div>${icon(e.face, 19)}</div><div class="nm">${AR(e.face)}</div>
+         <div class="by">${(view.seats[e.seat] || {}).name || ''}</div>`;
+    box.appendChild(el);
+  });
+
+  drawnCount = cards.length;
+  $('tablehint').classList.toggle('hide', cards.length > 0);
+  box.scrollLeft = box.scrollWidth;
+}
+
+function flyCard(i) {
+  const f = document.createElement('div');
+  f.className = 'flyer';
+  f.style.animationDelay = `${i * 110}ms`;
+  $('table').appendChild(f);
+  setTimeout(() => f.remove(), 760 + i * 110);
+}
+
+/* Drawing is done BY TAPPING THE DECK. In STRATEGY the tap submits a real draw
+   action (and asks 1/2/3 when there is a choice). In LUCK the engine has
+   already dealt the card, so the tap only reveals it. */
+function renderDeck() {
+  const pile = $('deckpile'), pick = $('draws');
+  const draws = view.legal.filter(a => a.type === 'draw');
+  pick.innerHTML = '';
+  pick.classList.add('hide');
+  pile.onclick = null;
+
+  if (facedown.length) {
+    pile.className = 'deckpile can';
+    pile.onclick = () => pullDealt();
+    return;
+  }
+  pile.className = 'deckpile' + (draws.length ? ' can' : '');
+  if (!draws.length) return;
+
+  if (draws.length === 1) {
+    pile.onclick = () => submitDraw(draws[0]);
+    return;
+  }
+  pile.onclick = () => pick.classList.toggle('hide');
+  draws.forEach(a => {
+    const b = document.createElement('button');
+    b.textContent = a.n;
+    b.onclick = ev => { ev.stopPropagation(); pick.classList.add('hide');
+                        submitDraw(a); };
+    pick.appendChild(b);
+  });
+}
+
+function submitDraw(action) {
+  if (busyDeck) return;
+  busyDeck = true;
+  const n = action.n || 1;
+  for (let i = 0; i < n; i++) flyCard(i);
+  setTimeout(() => {
+    busyDeck = false;
+    room.submit({type: 'draw', n});
+  }, 300 + (n - 1) * 110);
+}
+
+/** LUCK only: reveal the card the engine already dealt. Submits nothing. */
+function pullDealt() {
+  if (busyDeck) return;
+  busyDeck = true;
+  const n = facedown.length;
+  for (let i = 0; i < n; i++) flyCard(i);
+  setTimeout(() => {
+    facedown = [];
+    busyDeck = false;
+    render();
+  }, 320 + (n - 1) * 110);
+}
+
 function renderHand() {
   const v = view, box = $('hand');
   box.innerHTML = '';
+  const gated = facedown.length > 0;
+
   v.hand.forEach(c => {
-    const acts = v.legal.filter(a => a.card_id === c.id);
+    const acts = gated ? [] : v.legal.filter(a => a.card_id === c.id);
     const isSplit = c.kind === 'split' && c.faces.length > 1;
 
     const el = document.createElement('div');
     el.className = 'card ' + (isSplit ? 'split' : KIND(acts[0]?.face || c.faces[0]))
-      + (acts.length ? '' : ' dead');
+      + (acts.length ? '' : ' dead')
+      + (facedown.includes(c.id) ? ' facedown' : '');
     if (acts.some(a => a.counters)) {
       const t = document.createElement('span');
       t.className = 'tick';
@@ -1200,6 +1527,7 @@ function renderHand() {
     box.appendChild(el);
   });
 
+  if (gated) return;
   v.legal.filter(a => ['pass','concede_possession'].includes(a.type)).forEach(a => {
     const b = document.createElement('div');
     b.className = 'card special';

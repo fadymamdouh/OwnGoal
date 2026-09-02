@@ -318,6 +318,7 @@ let log = [];           // [{face, seat} | {sep:true}]
 let lastEvent = 0;      // highest event id folded into log
 let drawnCount = 0;     // history entries already animated
 let pendingSep = false; // a possession ended; divide before the next card
+let lastPossession = null;  // turnovers are silent, so watch this directly
 
 /* LUCK deals the card itself, so "pulling" is a UI gate: a newly arrived card
    sits face-down and unplayable until the deck is tapped. No rules change. */
@@ -338,6 +339,7 @@ const ENDS_POSSESSION = new Set([
 /** Fold any unseen events from this view into the table history. */
 function foldEvents(v) {
   const evs = (v.log || []).filter(e => e && typeof e.id === 'number');
+
   if (!evs.length) return;
 
   /* v.log is only the last 12 events. On a bad connection a guest can miss
@@ -358,12 +360,27 @@ function foldEvents(v) {
     } else if (ENDS_POSSESSION.has(e.kind) && log.length) {
       pendingSep = true;   // inserted lazily so the strip never ends on a line
     }
+    /* A stopped attack closes the exchange. Checked AFTER the card is pushed,
+       because a defending Interception belongs to the ATTACKER's exchange —
+       it closes that possession, it does not open the interceptor's. */
+    if (e.kind === 'defense_played' && e.stopped && log.length) pendingSep = true;
   }
+
+  /* A TURNOVER EMITS NO EVENT OF ITS OWN — the engine just flips possession
+     and clears the chain. Without this, an Interception followed by the
+     winner's own Shot renders as one player laying down two cards in a single
+     turn. Catches every cause without enumerating them: foul, concede,
+     counter-attack, neutral stops. */
+  if (lastPossession !== null && v.possession !== lastPossession && log.length) {
+    pendingSep = true;
+  }
+  lastPossession = v.possession;
 }
 
 /** Reset the table between matches. */
 function resetTable() {
   log = []; lastEvent = 0; drawnCount = 0; pendingSep = false;
+  lastPossession = null;
   prevHand = []; facedown = []; busyDeck = false;
   $('fan').innerHTML = '';
   $('hist').innerHTML = '';

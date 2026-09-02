@@ -255,9 +255,18 @@ class Game:
                 acts.append({"type": "play", "card_id": c.id, "face": f})
             for f in ("RESHUFFLE", "END_MATCH"):
                 for c in me.hand:
-                    if f in c.faces:
+                    if f not in c.faces:
+                        continue
+                    if f == "END_MATCH":
                         acts.append({"type": "special", "card_id": c.id, "face": f})
-                        break
+                    else:
+                        # swap with the deck, or in 2v2 trade with your partner
+                        acts.append({"type": "special", "card_id": c.id,
+                                     "face": f, "swap": "deck"})
+                        if self.n > 2:
+                            acts.append({"type": "special", "card_id": c.id,
+                                         "face": f, "swap": "partner"})
+                    break
             if not any(a["type"] == "play" for a in acts):
                 acts.append({"type": "concede_possession"})
             return acts
@@ -281,6 +290,15 @@ class Game:
                     # mandatory attempt: any card may be burned
                     acts.append({"type": "play", "card_id": c.id,
                                  "face": c.faces[0], "counters": False})
+            return acts
+
+        # L33: each player picks the cards leaving their OWN hand, one at a
+        # time. Exactly 2, and never chosen at random.
+        if self.phase == "reshuffle_pick" and seat_i == self.pending["seat"]:
+            chosen = self.pending["chosen"]
+            for c in me.hand:
+                if c.id not in chosen:
+                    acts.append({"type": "pick", "card_id": c.id})
             return acts
 
         if self.phase == "react_own_goal" and seat_i == self.pending["seat"]:
@@ -320,6 +338,7 @@ class Game:
             "defense": self._do_defense,
             "react_own_goal": self._do_own_goal,
             "react_var": self._do_var,
+            "reshuffle_pick": self._do_reshuffle_pick,
         }[self.phase]
         handler(seat_i, action)
         return self.log[before:]
@@ -354,7 +373,7 @@ class Game:
             if face == "END_MATCH":
                 self._end_match(seat_i)
             else:
-                self._reshuffle(seat)
+                self._open_reshuffle(seat_i, action.get("swap", "deck"))
             return
 
         self._burn(seat, card)
@@ -580,12 +599,80 @@ class Game:
         self.possession = self._next(self.possession)
         self.phase = self._open_attack()
 
-    def _reshuffle(self, seat):
-        for _ in range(2):
-            if seat.hand:
-                self._burn(seat, seat.hand[self.rng.randrange(len(seat.hand))])
-        self._refill(seat)
-        self._emit("reshuffled", seat=seat.index)
+    # ---------------------------------------------------------- reshuffle
+    # L33: the player picks which cards leave their own hand. Playing the card
+    # already discarded it, so the hand is at 3 here and exactly 2 more go.
+    #
+    # A partner trade needs BOTH players to choose, each from their own hand,
+    # so the phase runs twice: whoever played the card picks first, then the
+    # partner. Nobody reaches into anyone else's hand.
+    #
+    # Reshuffle does not consume the attack, so `owed` is left alone and play
+    # returns to the attack phase once the picking is done.
+
+    def _open_reshuffle(self, seat_i, swap):
+        partner = self._partner(seat_i)
+        with_partner = swap == "partner" and self.n > 2 and partner != seat_i
+        self.pending = {
+            "kind": "reshuffle",
+            "swap": "partner" if with_partner else "deck",
+            "seat": seat_i,        # whose turn it is to pick, right now
+            "owner": seat_i,       # who played the card
+            "partner": partner if with_partner else None,
+            "chosen": [],          # ids picked by the seat currently choosing
+            "taken": {},           # seat -> cards lifted out of that hand
+        }
+        self.phase = "reshuffle_pick"
+        self._emit("reshuffle_opened", seat=seat_i,
+                   swap=self.pending["swap"],
+                   partner=partner if with_partner else None)
+        self._maybe_finish_picking()
+
+    def _do_reshuffle_pick(self, seat_i, action):
+        p = self.pending
+        p["chosen"].append(action["card_id"])
+        self._emit("reshuffle_picked", seat=seat_i, count=len(p["chosen"]))
+        self._maybe_finish_picking()
+
+    def _maybe_finish_picking(self):
+        p = self.pending
+        seat = self.seats[p["seat"]]
+        want = min(2, len(seat.hand))
+        if len(p["chosen"]) < want:
+            return                              # still choosing
+
+        picked = [seat.find(i) for i in p["chosen"]]
+        picked = [c for c in picked if c is not None]
+        p["taken"][p["seat"]] = picked
+        for c in picked:
+            seat.hand.remove(c)
+
+        # partner trade: hand over so the partner picks from their own hand
+        if (p["swap"] == "partner" and p["partner"] is not None
+                and p["partner"] not in p["taken"]):
+            p["seat"] = p["partner"]
+            p["chosen"] = []
+            self._emit("reshuffle_turn", seat=p["partner"])
+            self._maybe_finish_picking()
+            return
+
+        if p["swap"] == "partner" and p["partner"] is not None:
+            a, b = p["owner"], p["partner"]
+            self.seats[a].hand.extend(p["taken"][b])
+            self.seats[b].hand.extend(p["taken"][a])
+            self._emit("reshuffled", seat=a, swap="partner", partner=b,
+                       n=len(p["taken"][a]))
+        else:
+            self.discard.extend(p["taken"][p["owner"]])
+            self._emit("reshuffled", seat=p["owner"], swap="deck",
+                       n=len(p["taken"][p["owner"]]))
+
+        self.pending = None
+        self._refill_all()
+        self.phase = "attack"        # Reshuffle never consumed the attack
+        if not self._playable_attack_faces(
+                self.seats[self.possession], self.owed <= 1):
+            self._concede()
 
     def _end_match(self, seat_i):
         mine, theirs = self.team(seat_i), 1 - self.team(seat_i)
@@ -619,6 +706,27 @@ def bot_action(game: Game, seat_i, policy="SHOOTER"):
         v = [a for a in acts if a.get("face") == "VAR" and a.get("call") == "heads"]
         return v[0] if v else {"type": "pass"}
 
+    # Picking cards to swap away. A human dumps their least useful cards, so the
+    # bot does the same: keep shots and split cards, spend spares first.
+    if game.phase == "reshuffle_pick":
+        hand = {c.id: c for c in game.seats[seat_i].hand}
+
+        def worth(a):
+            c = hand.get(a["card_id"])
+            if c is None:
+                return 0
+            if c.kind == "split":
+                return 3                      # two uses in one card
+            if c.faces[0] in SHOT_STAGE:
+                return 3
+            if c.faces[0] in DEFENSE_FACES:
+                return 2
+            if c.faces[0] == "RESHUFFLE":
+                return 0                      # dump spares first
+            return 1
+
+        return sorted(acts, key=worth)[0]
+
     if game.phase == "defense":
         good = [a for a in acts if a.get("counters")]
         if good:
@@ -632,7 +740,10 @@ def bot_action(game: Game, seat_i, policy="SHOOTER"):
         em = [a for a in acts if a.get("face") == "END_MATCH"]
         if em and game.score[game.team(seat_i)] > game.score[1 - game.team(seat_i)]:
             return em[0]
-        rs = [a for a in acts if a.get("face") == "RESHUFFLE"]
+        # dead hand: reshuffle rather than concede. Deck swap, not a partner
+        # trade — dragging a partner in needs judgement a bot does not have.
+        rs = [a for a in acts if a.get("face") == "RESHUFFLE"
+              and a.get("swap") == "deck"]
         return rs[0] if rs else acts[0]
 
     em = [a for a in acts if a.get("face") == "END_MATCH"]

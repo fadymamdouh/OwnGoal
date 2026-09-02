@@ -404,8 +404,11 @@
     },
     "chain_card": "Playable at any time, but ONLY by a player on the side that does NOT hold possession, and ONLY against a build-up card (Pass, Dribble, Assist). It cancels the running chain and takes possession immediately. It can never touch a scoring card.",
     "reshuffle": {
-      "ONE_V_ONE": "Swap exactly 2 cards from your hand with 2 from the deck.",
-      "TWO_V_TWO": "Either swap 2 with the deck, or trade 2-for-2 directly with your partner's hand. Both hands stay at 4."
+      "ONE_V_ONE": "Swap exactly 2 cards from your hand with 2 from the deck. YOU choose which 2 leave — they are not random.",
+      "TWO_V_TWO": "Either swap 2 with the deck, or trade 2-for-2 directly with your partner. CLOSED (L28): in a partner trade each player picks the 2 cards leaving their OWN hand — you choose yours, your partner chooses theirs. Nobody reaches into the other's hand. Both hands stay at 4.",
+      "cost": "Playing the card discards it, so a Reshuffle replaces 3 of your 4 cards in total: the Reshuffle itself plus the 2 you swap.",
+      "timing": "Playable on your own attacking turn only, and it does NOT consume the attack — you still play your attack card the same turn. While defending it cannot be activated; it is only burn fodder for the mandatory-defence rule.",
+      "why_it_matters": "With no playable attack card your only alternative is to concede possession, so Reshuffle is the escape hatch from a dead hand."
     },
     "end_match": "Playable at any time with no mechanical precondition — deliberately a \"رخامة\" (troll) card. The match ends instantly and the higher score wins. CLOSED: if the scores are LEVEL when it is played, the win goes to the OPPONENT of the player who played it. So the card is never a free win — playing it while not ahead hands the match away. Draws are therefore impossible.",
     "deck_refill": "The deck never runs out. When it empties, shuffle the discard pile and keep drawing from it. A match therefore only ends on goals_to_win or END_MATCH.",

@@ -226,6 +226,7 @@ function renderLobby(room, started) {
 
 /* ---------------- table ---------------- */
 const PHASE_TEXT = {
+  reshuffle_pick: ['اختار كارتين للتبديل', 'اللي تختاره هو اللي يمشي'],
   attack_draw: ['اسحب كام كارت؟', 'وتلعب نفس العدد بالظبط'],
   attack: ['دورك تهجم', 'الشوطة لازم تكون آخر كارت في السلسلة'],
   defense_draw: ['اسحب كام كارت للدفاع؟', 'أول كارت يكسر الاستحواذ، والباقي يبقى مرتدتك'],
@@ -308,6 +309,28 @@ function renderHand() {
   const box = $('hand');
   box.innerHTML = '';
   const legalFor = id => v.legal.filter(a => a.card_id === id);
+
+  /* Reshuffle picking (L33): `pick` actions carry no face, so they cannot go
+     through the normal card path. This client sends each tap immediately —
+     no staging or undo, unlike the Firebase client. */
+  const pickActs = v.legal.filter(a => a.type === 'pick');
+  if (pickActs.length) {
+    const byId = new Map(pickActs.map(a => [a.card_id, a]));
+    v.hand.forEach(c => {
+      const act = byId.get(c.id);
+      const face = c.faces[0];
+      const d = CARDS[face] || {ar: face, en: face, line: ''};
+      const el = document.createElement('div');
+      el.className = `card ${KIND(face)}` + (act ? '' : ' dead');
+      el.innerHTML = `<div class="en">${d.en}</div>
+        <div class="ar">${c.faces.map(f => (CARDS[f] || {}).ar || f).join(' / ')}</div>
+        <div class="ico">${icon(face, 32)}</div>
+        <div class="ln">${d.line || ''}</div>`;
+      if (act) el.onclick = () => send({t: 'action', action: {type: 'pick', card_id: c.id}});
+      box.appendChild(el);
+    });
+    return;
+  }
 
   v.hand.forEach(c => {
     const acts = legalFor(c.id);

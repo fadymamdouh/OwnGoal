@@ -267,6 +267,21 @@ input::placeholder{color:#55525f}
 .half.on{box-shadow:inset 0 0 0 1px var(--defense-glow)}
 .half.on::after{content:'▲';position:absolute;bottom:2px;left:50%;
   transform:translateX(-50%);font-size:7px;color:var(--defense-glow)}
+/* ---------- reshuffle picking ---------- */
+.card.sel{outline:2px solid var(--special-glow);outline-offset:-2px}
+.card.sel::before{content:attr(data-pick);position:absolute;top:5px;
+  inset-inline-end:5px;z-index:3;width:19px;height:19px;border-radius:50%;
+  background:var(--special-glow);color:#1a1206;font-family:'Oswald',sans-serif;
+  font-size:12px;display:flex;align-items:center;justify-content:center}
+.pickbar{display:flex;gap:8px;align-items:center;margin-top:8px;
+  background:#1b1226;border:1px solid #33244a;border-radius:12px;padding:9px 12px}
+.pickbar .txt{flex:1;font-size:12px;font-weight:700;color:var(--ink)}
+.pickbar button{background:var(--special);border-radius:9px;padding:9px 15px;
+  color:#fff;font-size:13px;font-weight:700}
+.pickbar button:disabled{background:#2a2140;color:#6b6b8a}
+.pickbar .clr{background:none;color:var(--muted);text-decoration:underline;
+  padding:9px 4px;font-size:11px}
+
 .splitmark{position:absolute;top:50%;inset-inline-start:3px;
   transform:translateY(-50%);font-size:7px;color:#ffffff4d;font-weight:900;
   letter-spacing:.1em;writing-mode:vertical-rl;z-index:2}
@@ -371,6 +386,11 @@ input::placeholder{color:#55525f}
       <div class="feed" id="feed"></div>
     </div>
     <div class="hand" id="hand"></div>
+    <div class="pickbar hide" id="pickbar">
+      <span class="txt" id="picktxt">—</span>
+      <button class="clr" id="pickclr">تراجع</button>
+      <button id="pickok" disabled>تأكيد</button>
+    </div>
     <div class="over hide" id="over"></div>
     <button class="go ghost" id="exitgame" style="margin-top:14px">اخرج من الماتش</button>
   </div>
@@ -780,7 +800,13 @@ class Game {
       }
       for (const f of ['RESHUFFLE', 'END_MATCH']) {
         const c = me.hand.find(x => x.faces.includes(f));
-        if (c) acts.push({ type: 'special', card_id: c.id, face: f });
+        if (!c) continue;
+        if (f === 'END_MATCH') { acts.push({ type: 'special', card_id: c.id, face: f }); continue; }
+        // Reshuffle: swap with the deck, or in 2v2 trade with your partner
+        acts.push({ type: 'special', card_id: c.id, face: f, swap: 'deck' });
+        if (this.n > 2) {
+          acts.push({ type: 'special', card_id: c.id, face: f, swap: 'partner' });
+        }
       }
       if (!acts.some(a => a.type === 'play')) acts.push({ type: 'concede_possession' });
       return acts;
@@ -806,6 +832,16 @@ class Game {
           // mandatory attempt: any card may be burned
           acts.push({ type: 'play', card_id: c.id, face: c.faces[0], counters: false });
         }
+      }
+      return acts;
+    }
+
+    /* L33: each player picks the cards leaving their OWN hand, one tap at a
+       time. Exactly 2, and never chosen at random. */
+    if (this.phase === 'reshuffle_pick' && seatIndex === this.pending.seat) {
+      const chosen = this.pending.chosen;
+      for (const c of me.hand) {
+        if (!chosen.includes(c.id)) acts.push({ type: 'pick', card_id: c.id });
       }
       return acts;
     }
@@ -851,6 +887,7 @@ class Game {
     const handler = {
       attack_draw: 'doDraw', defense_draw: 'doDraw', attack: 'doAttack',
       defense: 'doDefense', react_own_goal: 'doOwnGoal', react_var: 'doVar',
+      reshuffle_pick: 'doReshufflePick',
     }[this.phase];
     this[handler](seatIndex, action);
     return this.log.slice(before);
@@ -882,7 +919,7 @@ class Game {
     if (action.type === 'special') {
       this._burn(seat, card);
       if (face === 'END_MATCH') this._endMatch(seatIndex);
-      else this._reshuffle(seat);
+      else this._openReshuffle(seatIndex, action.swap || 'deck');
       return;
     }
 
@@ -1116,12 +1153,86 @@ class Game {
     this.phase = this._openAttack();
   }
 
-  _reshuffle(seat) {
-    for (let i = 0; i < 2; i++) {
-      if (seat.hand.length) this._burn(seat, seat.hand[this.rng.int(seat.hand.length)]);
+  /* ------------------------------------------------------------- reshuffle
+     L33: the player picks which cards leave their own hand. Playing the card
+     already discarded it, so the hand is at 3 here and exactly 2 more go.
+
+     A partner trade needs BOTH players to choose, each from their own hand, so
+     the phase runs twice: the player who played the card picks first, then the
+     partner. Nobody reaches into anyone else's hand.
+
+     Reshuffle does not consume the attack, so `owed` is left alone and play
+     returns to the attack phase when the picking is done.                    */
+  _openReshuffle(seatIndex, swap) {
+    const seat = this.seats[seatIndex];
+    const partner = this._partner(seatIndex);
+    const withPartner = swap === 'partner' && this.n > 2 && partner !== seatIndex;
+
+    this.pending = {
+      kind: 'reshuffle',
+      swap: withPartner ? 'partner' : 'deck',
+      seat: seatIndex,          // whose turn it is to pick, right now
+      owner: seatIndex,         // who played the card
+      partner: withPartner ? partner : null,
+      chosen: [],               // card ids picked by the seat currently choosing
+      taken: {},                // seat -> [cards] pulled out of that hand
+    };
+    this.phase = 'reshuffle_pick';
+    this._emit('reshuffle_opened', {
+      seat: seatIndex, swap: this.pending.swap,
+      partner: withPartner ? partner : null,
+    });
+    // a hand too short to pick from resolves straight away
+    this._maybeFinishPicking();
+  }
+
+  doReshufflePick(seatIndex, action) {
+    const p = this.pending;
+    p.chosen.push(action.card_id);
+    this._emit('reshuffle_picked', { seat: seatIndex, count: p.chosen.length });
+    this._maybeFinishPicking();
+  }
+
+  _maybeFinishPicking() {
+    const p = this.pending;
+    const seat = this.seats[p.seat];
+    const want = Math.min(2, seat.hand.length);
+    if (p.chosen.length < want) return;          // still choosing
+
+    // lift the chosen cards out of this hand
+    p.taken[p.seat] = p.chosen.map(id => seat.find(id)).filter(Boolean);
+    for (const c of p.taken[p.seat]) {
+      seat.hand.splice(seat.hand.indexOf(c), 1);
     }
-    this._refill(seat);
-    this._emit('reshuffled', { seat: seat.index });
+
+    // partner trade: hand over to the partner to choose from their own hand
+    if (p.swap === 'partner' && p.partner !== null && p.taken[p.partner] === undefined) {
+      p.seat = p.partner;
+      p.chosen = [];
+      this._emit('reshuffle_turn', { seat: p.partner });
+      this._maybeFinishPicking();
+      return;
+    }
+
+    if (p.swap === 'partner' && p.partner !== null) {
+      // each side receives what the other put in
+      const a = p.owner, b = p.partner;
+      this.seats[a].hand.push(...p.taken[b]);
+      this.seats[b].hand.push(...p.taken[a]);
+      this._emit('reshuffled', {
+        seat: a, swap: 'partner', partner: b, n: p.taken[a].length,
+      });
+    } else {
+      for (const c of p.taken[p.owner]) this.discard.push(c);
+      this._emit('reshuffled', { seat: p.owner, swap: 'deck', n: p.taken[p.owner].length });
+    }
+
+    this.pending = null;
+    this._refillAll();
+    this.phase = 'attack';       // Reshuffle never consumed the attack
+    if (!this._playableAttacks(this.seats[this.possession], this.owed <= 1).length) {
+      this._concede();
+    }
   }
 
   _endMatch(seatIndex) {
@@ -1154,6 +1265,22 @@ function botAction(game, seatIndex, policy = 'SHOOTER') {
     return acts.find(a => a.face === 'VAR' && a.call === 'heads') || { type: 'pass' };
   }
 
+  /* Picking cards to swap away. A human would dump their least useful cards, so
+     the bot does the same: anything with no attack face and no counter value
+     goes first, keeping shots and split cards. */
+  if (game.phase === 'reshuffle_pick') {
+    const worth = id => {
+      const c = game.seats[seatIndex].hand.find(x => x.id === id);
+      if (!c) return 0;
+      if (c.kind === 'split') return 3;                     // two uses in one card
+      if (SHOT_STAGE.has(c.faces[0])) return 3;
+      if (DEFENSE_FACES.has(c.faces[0])) return 2;
+      if (c.faces[0] === 'RESHUFFLE') return 0;             // dump spares first
+      return 1;
+    };
+    return [...acts].sort((a, b) => worth(a.card_id) - worth(b.card_id))[0];
+  }
+
   if (game.phase === 'defense') {
     const good = acts.filter(a => a.counters);
     if (good.length) {
@@ -1171,7 +1298,9 @@ function botAction(game, seatIndex, policy = 'SHOOTER') {
 
   const plays = acts.filter(a => a.type === 'play');
   if (!plays.length) {
-    return acts.find(a => a.face === 'RESHUFFLE') || acts[0];
+    // dead hand: reshuffle rather than concede. Deck swap, not a partner trade —
+    // dragging a partner into it needs judgement a bot does not have.
+    return acts.find(a => a.face === 'RESHUFFLE' && a.swap === 'deck') || acts[0];
   }
 
   let order = PRIORITY;
@@ -1287,6 +1416,11 @@ let prevHand = [];
 let facedown = [];
 let busyDeck = false;
 
+/* Reshuffle picking. Selections are staged locally so a tap can be undone;
+   nothing reaches the engine until تأكيد, which then sends one `pick` per card
+   in the order they were chosen. */
+let picks = [];
+
 const CARD_EVENTS = {
   attack_played:   e => ({face: e.face, seat: e.seat}),
   defense_played:  e => ({face: e.face, seat: e.seat}),
@@ -1349,7 +1483,7 @@ function resetTable() {
   table = []; feed = [];
   lastEvent = 0; drawnCount = 0; cardNo = 0;
   sweepTable = false; lastPossession = null;
-  prevHand = []; facedown = []; busyDeck = false;
+  prevHand = []; facedown = []; busyDeck = false; picks = [];
   $('fan').innerHTML = '';
   $('hist').innerHTML = '';
   $('feed').innerHTML = '';
@@ -1425,6 +1559,8 @@ async function exitRoom() {
 }
 
 $('keyonly').onchange = () => { if (view) renderFeed(); };
+$('pickok').onclick = confirmPicks;
+$('pickclr').onclick = () => { picks = []; renderHand(); };
 $('exitwait').onclick = exitRoom;
 $('exitgame').onclick = exitRoom;
 
@@ -1434,6 +1570,7 @@ const PHASE_TEXT = {
   defense_draw: ['اسحب كام كارت للدفاع؟', 'أول كارت يكسر الاستحواذ، والباقي يبقى مرتدتك'],
   defense: ['رد على الهجمة', 'لازم تلعب كارت حتى لو مالكش رد'],
   react_own_goal: ['الشوطة عدّت! معاك Own Goal', 'تلعبه؟ النقطة تتحسب لك'],
+  reshuffle_pick: ['اختار كارتين للتبديل', 'اللي تختاره هو اللي يمشي'],
   react_var: ['اتسجل هدف — معاك VAR', 'اختار وش أو ضهر: ضهر يلغي الهدف'],
 };
 
@@ -1599,7 +1736,19 @@ function commLine(e) {
       return txt(`كروت <b>${n(e.seat)}</b> الفاضلة اتحرقت.`);
 
     case 'reshuffled':
-      return txt(`<b>${n(e.seat)}</b> بدّل كروت من الديك.`);
+      return e.swap === 'partner'
+        ? ttl('تبديل مع الزميل') +
+          txt(`<b>${n(e.seat)}</b> و<b>${n(e.partner)}</b> بدّلوا ${e.n} كروت، ` +
+              'كل واحد اختار من إيده.')
+        : txt(`<b>${n(e.seat)}</b> بدّل ${e.n || 2} كروت من الديك.`);
+
+    case 'reshuffle_opened':
+      return txt(`<b>${n(e.seat)}</b> لعب ريشافل — ` +
+                 (e.swap === 'partner' ? 'تبديل مع الزميل.' : 'تبديل من الديك.'));
+
+    case 'reshuffle_picked':
+    case 'reshuffle_turn':
+      return null;   // mid-selection noise, not worth a commentary line
 
     case 'deck_recycled':
       return txt('الديك خلص — الحرق اتخلط ورجع ديك.');
@@ -1724,9 +1873,74 @@ function pullDealt() {
   }, 320 + (n - 1) * 110);
 }
 
+/* L33: you choose which of your own cards go. Tap to stage, tap again to undo,
+   then تأكيد. The engine takes one pick at a time, so the confirmed selections
+   are sent in the order they were chosen. */
+function renderPicker(pickActs, box) {
+  const v = view;
+  const byId = new Map(pickActs.map(a => [a.card_id, a]));
+  const need = Math.min(2, pickActs.length);
+  picks = picks.filter(id => byId.has(id));
+
+  v.hand.forEach(c => {
+    const act = byId.get(c.id);
+    const isSplit = c.kind === 'split' && c.faces.length > 1;
+    const el = document.createElement('div');
+    const at = picks.indexOf(c.id);
+    el.className = 'card ' + (isSplit ? 'split' : KIND(c.faces[0]))
+      + (act ? '' : ' dead') + (at >= 0 ? ' sel' : '');
+    if (at >= 0) el.dataset.pick = at + 1;
+    if (isSplit) {
+      const mark = document.createElement('span');
+      mark.className = 'splitmark';
+      mark.textContent = 'SPLIT';
+      el.appendChild(mark);
+    }
+    c.faces.forEach(face => {
+      const d = CARDS[face] || {ar: face, en: face, line: ''};
+      const half = document.createElement('div');
+      half.className = `half ${KIND(face)} on`;
+      half.innerHTML = `<div class="en">${d.en}</div>
+        <div class="ar">${d.ar}</div>
+        <div class="ico">${icon(face, isSplit ? 22 : 34)}</div>` +
+        (isSplit ? '' : `<div class="ln">${d.line || ''}</div>`);
+      el.appendChild(half);
+    });
+    if (act) {
+      el.onclick = () => {
+        const i = picks.indexOf(c.id);
+        if (i >= 0) picks.splice(i, 1);
+        else if (picks.length < need) picks.push(c.id);
+        renderHand();
+      };
+    }
+    box.appendChild(el);
+  });
+
+  const bar = $('pickbar');
+  bar.classList.remove('hide');
+  $('picktxt').textContent = picks.length >= need
+    ? 'جاهز — اضغط تأكيد'
+    : `اختار ${need - picks.length} ${need - picks.length === 1 ? 'كارت' : 'كروت'} للتبديل`;
+  $('pickok').disabled = picks.length < need;
+}
+
+function confirmPicks() {
+  if (!picks.length) return;
+  const send = picks.slice();
+  picks = [];
+  for (const id of send) room.submit({type: 'pick', card_id: id});
+}
+
 function renderHand() {
   const v = view, box = $('hand');
   box.innerHTML = '';
+
+  /* Reshuffle: the whole hand becomes a chooser. `pick` actions carry no face,
+     so they cannot go through the normal card path at all. */
+  const pickActs = v.legal.filter(a => a.type === 'pick');
+  if (pickActs.length) { renderPicker(pickActs, box); return; }
+  $('pickbar').classList.add('hide');
   const gated = facedown.length > 0;
 
   v.hand.forEach(c => {
@@ -1779,7 +1993,9 @@ function renderHand() {
           dual.className = 'dual';
           faceActs.forEach(a => {
             const b = document.createElement('button');
-            b.textContent = a.call ? (a.call === 'heads' ? 'وش' : 'ضهر') : AR(a.face);
+            b.textContent = a.call ? (a.call === 'heads' ? 'وش' : 'ضهر')
+              : a.swap ? (a.swap === 'deck' ? 'من الديك' : 'مع زميلك')
+              : AR(a.face);
             b.onclick = ev => { ev.stopPropagation(); submit(a); };
             dual.appendChild(b);
           });

@@ -267,6 +267,21 @@ input::placeholder{color:#55525f}
 .half.on{box-shadow:inset 0 0 0 1px var(--defense-glow)}
 .half.on::after{content:'▲';position:absolute;bottom:2px;left:50%;
   transform:translateX(-50%);font-size:7px;color:var(--defense-glow)}
+/* ---------- reshuffle picking ---------- */
+.card.sel{outline:2px solid var(--special-glow);outline-offset:-2px}
+.card.sel::before{content:attr(data-pick);position:absolute;top:5px;
+  inset-inline-end:5px;z-index:3;width:19px;height:19px;border-radius:50%;
+  background:var(--special-glow);color:#1a1206;font-family:'Oswald',sans-serif;
+  font-size:12px;display:flex;align-items:center;justify-content:center}
+.pickbar{display:flex;gap:8px;align-items:center;margin-top:8px;
+  background:#1b1226;border:1px solid #33244a;border-radius:12px;padding:9px 12px}
+.pickbar .txt{flex:1;font-size:12px;font-weight:700;color:var(--ink)}
+.pickbar button{background:var(--special);border-radius:9px;padding:9px 15px;
+  color:#fff;font-size:13px;font-weight:700}
+.pickbar button:disabled{background:#2a2140;color:#6b6b8a}
+.pickbar .clr{background:none;color:var(--muted);text-decoration:underline;
+  padding:9px 4px;font-size:11px}
+
 .splitmark{position:absolute;top:50%;inset-inline-start:3px;
   transform:translateY(-50%);font-size:7px;color:#ffffff4d;font-weight:900;
   letter-spacing:.1em;writing-mode:vertical-rl;z-index:2}
@@ -371,6 +386,11 @@ input::placeholder{color:#55525f}
       <div class="feed" id="feed"></div>
     </div>
     <div class="hand" id="hand"></div>
+    <div class="pickbar hide" id="pickbar">
+      <span class="txt" id="picktxt">—</span>
+      <button class="clr" id="pickclr">تراجع</button>
+      <button id="pickok" disabled>تأكيد</button>
+    </div>
     <div class="over hide" id="over"></div>
     <button class="go ghost" id="exitgame" style="margin-top:14px">اخرج من الماتش</button>
   </div>
@@ -428,6 +448,11 @@ let cardNo = 0;         // cards played this match — the timeline marker
 let prevHand = [];
 let facedown = [];
 let busyDeck = false;
+
+/* Reshuffle picking. Selections are staged locally so a tap can be undone;
+   nothing reaches the engine until تأكيد, which then sends one `pick` per card
+   in the order they were chosen. */
+let picks = [];
 
 const CARD_EVENTS = {
   attack_played:   e => ({face: e.face, seat: e.seat}),
@@ -491,7 +516,7 @@ function resetTable() {
   table = []; feed = [];
   lastEvent = 0; drawnCount = 0; cardNo = 0;
   sweepTable = false; lastPossession = null;
-  prevHand = []; facedown = []; busyDeck = false;
+  prevHand = []; facedown = []; busyDeck = false; picks = [];
   $('fan').innerHTML = '';
   $('hist').innerHTML = '';
   $('feed').innerHTML = '';
@@ -567,6 +592,8 @@ async function exitRoom() {
 }
 
 $('keyonly').onchange = () => { if (view) renderFeed(); };
+$('pickok').onclick = confirmPicks;
+$('pickclr').onclick = () => { picks = []; renderHand(); };
 $('exitwait').onclick = exitRoom;
 $('exitgame').onclick = exitRoom;
 
@@ -576,6 +603,7 @@ const PHASE_TEXT = {
   defense_draw: ['اسحب كام كارت للدفاع؟', 'أول كارت يكسر الاستحواذ، والباقي يبقى مرتدتك'],
   defense: ['رد على الهجمة', 'لازم تلعب كارت حتى لو مالكش رد'],
   react_own_goal: ['الشوطة عدّت! معاك Own Goal', 'تلعبه؟ النقطة تتحسب لك'],
+  reshuffle_pick: ['اختار كارتين للتبديل', 'اللي تختاره هو اللي يمشي'],
   react_var: ['اتسجل هدف — معاك VAR', 'اختار وش أو ضهر: ضهر يلغي الهدف'],
 };
 
@@ -741,7 +769,19 @@ function commLine(e) {
       return txt(`كروت <b>${n(e.seat)}</b> الفاضلة اتحرقت.`);
 
     case 'reshuffled':
-      return txt(`<b>${n(e.seat)}</b> بدّل كروت من الديك.`);
+      return e.swap === 'partner'
+        ? ttl('تبديل مع الزميل') +
+          txt(`<b>${n(e.seat)}</b> و<b>${n(e.partner)}</b> بدّلوا ${e.n} كروت، ` +
+              'كل واحد اختار من إيده.')
+        : txt(`<b>${n(e.seat)}</b> بدّل ${e.n || 2} كروت من الديك.`);
+
+    case 'reshuffle_opened':
+      return txt(`<b>${n(e.seat)}</b> لعب ريشافل — ` +
+                 (e.swap === 'partner' ? 'تبديل مع الزميل.' : 'تبديل من الديك.'));
+
+    case 'reshuffle_picked':
+    case 'reshuffle_turn':
+      return null;   // mid-selection noise, not worth a commentary line
 
     case 'deck_recycled':
       return txt('الديك خلص — الحرق اتخلط ورجع ديك.');
@@ -866,9 +906,74 @@ function pullDealt() {
   }, 320 + (n - 1) * 110);
 }
 
+/* L33: you choose which of your own cards go. Tap to stage, tap again to undo,
+   then تأكيد. The engine takes one pick at a time, so the confirmed selections
+   are sent in the order they were chosen. */
+function renderPicker(pickActs, box) {
+  const v = view;
+  const byId = new Map(pickActs.map(a => [a.card_id, a]));
+  const need = Math.min(2, pickActs.length);
+  picks = picks.filter(id => byId.has(id));
+
+  v.hand.forEach(c => {
+    const act = byId.get(c.id);
+    const isSplit = c.kind === 'split' && c.faces.length > 1;
+    const el = document.createElement('div');
+    const at = picks.indexOf(c.id);
+    el.className = 'card ' + (isSplit ? 'split' : KIND(c.faces[0]))
+      + (act ? '' : ' dead') + (at >= 0 ? ' sel' : '');
+    if (at >= 0) el.dataset.pick = at + 1;
+    if (isSplit) {
+      const mark = document.createElement('span');
+      mark.className = 'splitmark';
+      mark.textContent = 'SPLIT';
+      el.appendChild(mark);
+    }
+    c.faces.forEach(face => {
+      const d = CARDS[face] || {ar: face, en: face, line: ''};
+      const half = document.createElement('div');
+      half.className = `half ${KIND(face)} on`;
+      half.innerHTML = `<div class="en">${d.en}</div>
+        <div class="ar">${d.ar}</div>
+        <div class="ico">${icon(face, isSplit ? 22 : 34)}</div>` +
+        (isSplit ? '' : `<div class="ln">${d.line || ''}</div>`);
+      el.appendChild(half);
+    });
+    if (act) {
+      el.onclick = () => {
+        const i = picks.indexOf(c.id);
+        if (i >= 0) picks.splice(i, 1);
+        else if (picks.length < need) picks.push(c.id);
+        renderHand();
+      };
+    }
+    box.appendChild(el);
+  });
+
+  const bar = $('pickbar');
+  bar.classList.remove('hide');
+  $('picktxt').textContent = picks.length >= need
+    ? 'جاهز — اضغط تأكيد'
+    : `اختار ${need - picks.length} ${need - picks.length === 1 ? 'كارت' : 'كروت'} للتبديل`;
+  $('pickok').disabled = picks.length < need;
+}
+
+function confirmPicks() {
+  if (!picks.length) return;
+  const send = picks.slice();
+  picks = [];
+  for (const id of send) room.submit({type: 'pick', card_id: id});
+}
+
 function renderHand() {
   const v = view, box = $('hand');
   box.innerHTML = '';
+
+  /* Reshuffle: the whole hand becomes a chooser. `pick` actions carry no face,
+     so they cannot go through the normal card path at all. */
+  const pickActs = v.legal.filter(a => a.type === 'pick');
+  if (pickActs.length) { renderPicker(pickActs, box); return; }
+  $('pickbar').classList.add('hide');
   const gated = facedown.length > 0;
 
   v.hand.forEach(c => {
@@ -921,7 +1026,9 @@ function renderHand() {
           dual.className = 'dual';
           faceActs.forEach(a => {
             const b = document.createElement('button');
-            b.textContent = a.call ? (a.call === 'heads' ? 'وش' : 'ضهر') : AR(a.face);
+            b.textContent = a.call ? (a.call === 'heads' ? 'وش' : 'ضهر')
+              : a.swap ? (a.swap === 'deck' ? 'من الديك' : 'مع زميلك')
+              : AR(a.face);
             b.onclick = ev => { ev.stopPropagation(); submit(a); };
             dual.appendChild(b);
           });

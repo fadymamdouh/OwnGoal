@@ -33,6 +33,7 @@ what to measure.
 | L29 | 2v2 possession on a won ball | Goes to the winner's **partner**, never the winner himself. |
 | L30 | 2v2 neutral possession | To the next seat in rotation that holds an attack card; it can return to the attacking team. |
 | L31 | After any goal (both modes) | Play resumes with the **conceding** side. Scoring never returns the ball to you. Own Goal needs no exception. |
+| L33 | Reshuffle — who picks the cards | **Each player picks from their OWN hand.** In 1v1 (and a 2v2 deck swap) you choose the 2 cards leaving your hand — they are never random. In a 2v2 partner trade you choose your 2 and your partner chooses theirs; nobody reaches into the other's hand. Both hands stay at 4. |
 | L32 | Partner communication | Talking is allowed; **naming or describing a card is not**. Hands stay hidden from partners. |
 | L26 | Shot ordering (was Q13) | **A shot must be the LAST card of a chain.** Playing it closes the chain; leftover drawn cards burn. Balances Strategy mode to 51.4% vs 48.6%. |
 | L27 | Chain's scope (was Q14) | **Build-up only** — Pass, Dribble, Assist. It can never answer a scoring card. General principle: a scoring card is only ever answered by the defenses named against it. |

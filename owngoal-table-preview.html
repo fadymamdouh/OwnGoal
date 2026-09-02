@@ -663,7 +663,13 @@ class Game {
       }
       for (const f of ['RESHUFFLE', 'END_MATCH']) {
         const c = me.hand.find(x => x.faces.includes(f));
-        if (c) acts.push({ type: 'special', card_id: c.id, face: f });
+        if (!c) continue;
+        if (f === 'END_MATCH') { acts.push({ type: 'special', card_id: c.id, face: f }); continue; }
+        // Reshuffle: swap with the deck, or in 2v2 trade with your partner
+        acts.push({ type: 'special', card_id: c.id, face: f, swap: 'deck' });
+        if (this.n > 2) {
+          acts.push({ type: 'special', card_id: c.id, face: f, swap: 'partner' });
+        }
       }
       if (!acts.some(a => a.type === 'play')) acts.push({ type: 'concede_possession' });
       return acts;
@@ -689,6 +695,16 @@ class Game {
           // mandatory attempt: any card may be burned
           acts.push({ type: 'play', card_id: c.id, face: c.faces[0], counters: false });
         }
+      }
+      return acts;
+    }
+
+    /* L33: each player picks the cards leaving their OWN hand, one tap at a
+       time. Exactly 2, and never chosen at random. */
+    if (this.phase === 'reshuffle_pick' && seatIndex === this.pending.seat) {
+      const chosen = this.pending.chosen;
+      for (const c of me.hand) {
+        if (!chosen.includes(c.id)) acts.push({ type: 'pick', card_id: c.id });
       }
       return acts;
     }
@@ -734,6 +750,7 @@ class Game {
     const handler = {
       attack_draw: 'doDraw', defense_draw: 'doDraw', attack: 'doAttack',
       defense: 'doDefense', react_own_goal: 'doOwnGoal', react_var: 'doVar',
+      reshuffle_pick: 'doReshufflePick',
     }[this.phase];
     this[handler](seatIndex, action);
     return this.log.slice(before);
@@ -765,7 +782,7 @@ class Game {
     if (action.type === 'special') {
       this._burn(seat, card);
       if (face === 'END_MATCH') this._endMatch(seatIndex);
-      else this._reshuffle(seat);
+      else this._openReshuffle(seatIndex, action.swap || 'deck');
       return;
     }
 
@@ -999,12 +1016,86 @@ class Game {
     this.phase = this._openAttack();
   }
 
-  _reshuffle(seat) {
-    for (let i = 0; i < 2; i++) {
-      if (seat.hand.length) this._burn(seat, seat.hand[this.rng.int(seat.hand.length)]);
+  /* ------------------------------------------------------------- reshuffle
+     L33: the player picks which cards leave their own hand. Playing the card
+     already discarded it, so the hand is at 3 here and exactly 2 more go.
+
+     A partner trade needs BOTH players to choose, each from their own hand, so
+     the phase runs twice: the player who played the card picks first, then the
+     partner. Nobody reaches into anyone else's hand.
+
+     Reshuffle does not consume the attack, so `owed` is left alone and play
+     returns to the attack phase when the picking is done.                    */
+  _openReshuffle(seatIndex, swap) {
+    const seat = this.seats[seatIndex];
+    const partner = this._partner(seatIndex);
+    const withPartner = swap === 'partner' && this.n > 2 && partner !== seatIndex;
+
+    this.pending = {
+      kind: 'reshuffle',
+      swap: withPartner ? 'partner' : 'deck',
+      seat: seatIndex,          // whose turn it is to pick, right now
+      owner: seatIndex,         // who played the card
+      partner: withPartner ? partner : null,
+      chosen: [],               // card ids picked by the seat currently choosing
+      taken: {},                // seat -> [cards] pulled out of that hand
+    };
+    this.phase = 'reshuffle_pick';
+    this._emit('reshuffle_opened', {
+      seat: seatIndex, swap: this.pending.swap,
+      partner: withPartner ? partner : null,
+    });
+    // a hand too short to pick from resolves straight away
+    this._maybeFinishPicking();
+  }
+
+  doReshufflePick(seatIndex, action) {
+    const p = this.pending;
+    p.chosen.push(action.card_id);
+    this._emit('reshuffle_picked', { seat: seatIndex, count: p.chosen.length });
+    this._maybeFinishPicking();
+  }
+
+  _maybeFinishPicking() {
+    const p = this.pending;
+    const seat = this.seats[p.seat];
+    const want = Math.min(2, seat.hand.length);
+    if (p.chosen.length < want) return;          // still choosing
+
+    // lift the chosen cards out of this hand
+    p.taken[p.seat] = p.chosen.map(id => seat.find(id)).filter(Boolean);
+    for (const c of p.taken[p.seat]) {
+      seat.hand.splice(seat.hand.indexOf(c), 1);
     }
-    this._refill(seat);
-    this._emit('reshuffled', { seat: seat.index });
+
+    // partner trade: hand over to the partner to choose from their own hand
+    if (p.swap === 'partner' && p.partner !== null && p.taken[p.partner] === undefined) {
+      p.seat = p.partner;
+      p.chosen = [];
+      this._emit('reshuffle_turn', { seat: p.partner });
+      this._maybeFinishPicking();
+      return;
+    }
+
+    if (p.swap === 'partner' && p.partner !== null) {
+      // each side receives what the other put in
+      const a = p.owner, b = p.partner;
+      this.seats[a].hand.push(...p.taken[b]);
+      this.seats[b].hand.push(...p.taken[a]);
+      this._emit('reshuffled', {
+        seat: a, swap: 'partner', partner: b, n: p.taken[a].length,
+      });
+    } else {
+      for (const c of p.taken[p.owner]) this.discard.push(c);
+      this._emit('reshuffled', { seat: p.owner, swap: 'deck', n: p.taken[p.owner].length });
+    }
+
+    this.pending = null;
+    this._refillAll();
+    this.phase = 'attack';       // Reshuffle never consumed the attack
+    if (!this._playableAttacks(this.seats[this.possession], this.owed <= 1).length) {
+      this._concede();
+    }
   }
 
   _endMatch(seatIndex) {
@@ -1037,6 +1128,22 @@ function botAction(game, seatIndex, policy = 'SHOOTER') {
     return acts.find(a => a.face === 'VAR' && a.call === 'heads') || { type: 'pass' };
   }
 
+  /* Picking cards to swap away. A human would dump their least useful cards, so
+     the bot does the same: anything with no attack face and no counter value
+     goes first, keeping shots and split cards. */
+  if (game.phase === 'reshuffle_pick') {
+    const worth = id => {
+      const c = game.seats[seatIndex].hand.find(x => x.id === id);
+      if (!c) return 0;
+      if (c.kind === 'split') return 3;                     // two uses in one card
+      if (SHOT_STAGE.has(c.faces[0])) return 3;
+      if (DEFENSE_FACES.has(c.faces[0])) return 2;
+      if (c.faces[0] === 'RESHUFFLE') return 0;             // dump spares first
+      return 1;
+    };
+    return [...acts].sort((a, b) => worth(a.card_id) - worth(b.card_id))[0];
+  }
+
   if (game.phase === 'defense') {
     const good = acts.filter(a => a.counters);
     if (good.length) {
@@ -1054,7 +1161,9 @@ function botAction(game, seatIndex, policy = 'SHOOTER') {
 
   const plays = acts.filter(a => a.type === 'play');
   if (!plays.length) {
-    return acts.find(a => a.face === 'RESHUFFLE') || acts[0];
+    // dead hand: reshuffle rather than concede. Deck swap, not a partner trade —
+    // dragging a partner into it needs judgement a bot does not have.
+    return acts.find(a => a.face === 'RESHUFFLE' && a.swap === 'deck') || acts[0];
   }
 
   let order = PRIORITY;

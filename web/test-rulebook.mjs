@@ -488,6 +488,90 @@ for (const [face, who] of Object.entries(RULEBOOK_POSSESSION)) {
   check('a Goal card becomes playable once unlocked by an Assist', !!goalNow);
 }
 
+// ------------------------------------------------- Reshuffle (L33: you choose)
+{
+  const g = rig({ mode: 'LUCK' });
+  g.phase = 'attack'; g.possession = 0; g.defender = 1; g.owed = 1;
+  setHand(g, 0, ['RESHUFFLE', 'SUPER_SHOT', 'PASS', 'FOUL']);
+
+  const opts = g.legalActions(0).filter(a => a.face === 'RESHUFFLE');
+  check('1v1 offers a deck swap only, no partner trade',
+        opts.length === 1 && opts[0].swap === 'deck',
+        JSON.stringify(opts.map(a => a.swap)));
+
+  g.apply(0, opts[0]);
+  check('playing Reshuffle opens a picking phase, it does not resolve at once',
+        g.phase === 'reshuffle_pick');
+  check('the hand to pick from is 3 cards — the Reshuffle itself is spent',
+        g.seats[0].hand.length === 3, `${g.seats[0].hand.length}`);
+
+  /* Deliberately keep the best card and dump the other two. Checked by card
+     ID, not by face: with 4 Fouls and 15 Pass/Interceptions in the deck, the
+     refill can legitimately hand the same FACE straight back. */
+  const keptId = g.seats[0].hand.find(x => x.faces[0] === 'SUPER_SHOT').id;
+  const dumped = [];
+  for (const f of ['PASS', 'FOUL']) {
+    const c = g.seats[0].hand.find(x => x.faces[0] === f);
+    dumped.push(c.id);
+    g.apply(0, g.legalActions(0).find(a => a.card_id === c.id));
+  }
+  const ids = g.seats[0].hand.map(c => c.id);
+  check('the exact cards YOU picked are the ones that left',
+        dumped.every(id => !ids.includes(id)),
+        `dumped ${dumped} still holding ${ids}`);
+  check('the card you kept is still there — picks are not random',
+        ids.includes(keptId), `kept ${keptId}, hand ${ids}`);
+  check('the dumped cards are in the discard pile',
+        dumped.every(id => g.discard.some(c => c.id === id)));
+  check('hand returns to 4 after a Reshuffle', g.seats[0].hand.length === 4);
+  check('Reshuffle does not consume the attack',
+        g.owed === 1 && g.phase === 'attack', `owed=${g.owed} phase=${g.phase}`);
+}
+{
+  // 2v2 partner trade: each side picks from their OWN hand
+  const g = rig({ mode: 'LUCK', matchType: 'TWO_V_TWO', seed: 4 });
+  g.phase = 'attack'; g.possession = 0; g.defender = 1; g.owed = 1;
+  setHand(g, 0, ['RESHUFFLE', 'FOUL', 'OFFSIDE', 'BLOCK']);
+  setHand(g, 2, ['SUPER_SHOT', 'SHOT_GOAL', 'PASS', 'DRIBBLE']);
+
+  const partnerOpt = g.legalActions(0).find(a =>
+    a.face === 'RESHUFFLE' && a.swap === 'partner');
+  check('2v2 offers a partner trade as well as a deck swap', !!partnerOpt);
+
+  g.apply(0, partnerOpt);
+  check('the player who played it picks first', g.pending.seat === 0);
+  for (const f of ['FOUL', 'OFFSIDE']) {
+    const c = g.seats[0].hand.find(x => x.faces[0] === f);
+    g.apply(0, g.legalActions(0).find(a => a.card_id === c.id));
+  }
+  check('then the partner picks, from their own hand',
+        g.pending && g.pending.seat === 2, `${g.pending && g.pending.seat}`);
+  for (const f of ['PASS', 'DRIBBLE']) {
+    const c = g.seats[2].hand.find(x => x.faces[0] === f);
+    g.apply(2, g.legalActions(2).find(a => a.card_id === c.id));
+  }
+  const a0 = g.seats[0].hand.map(c => c.faces.join('/'));
+  const a2 = g.seats[2].hand.map(c => c.faces.join('/'));
+  check('each side receives what the other put in',
+        a0.some(f => f.startsWith('PASS')) && a2.includes('FOUL'),
+        `A[${a0}] C[${a2}]`);
+  check('a partner trade discards nothing',
+        !g.discard.some(c => c.faces[0] === 'FOUL'));
+  check('both hands stay at 4',
+        g.seats[0].hand.length === 4 && g.seats[2].hand.length === 4);
+}
+{
+  // while defending, Reshuffle is fodder only — it cannot be activated
+  const g = rig({ mode: 'LUCK' });
+  g.phase = 'attack'; g.possession = 0; g.defender = 1; g.owed = 1;
+  setHand(g, 0, ['PASS', 'PASS', 'PASS', 'PASS']);
+  setHand(g, 1, ['RESHUFFLE', 'RESHUFFLE', 'RESHUFFLE', 'RESHUFFLE']);
+  g.apply(0, g.legalActions(0).find(a => a.face === 'PASS'));
+  check('Reshuffle cannot be activated while defending',
+        !g.legalActions(1).some(a => a.type === 'special'),
+        JSON.stringify(g.legalActions(1).map(a => a.type)));
+}
+
 // ------------------------------------------------------------------- report
 console.log('\nrulebook conformance');
 console.log(`  checks passed : ${pass}`);

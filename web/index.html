@@ -55,9 +55,80 @@ input::placeholder{color:#55525f}
   background:#1a1226;border:1px solid #33244a;font-weight:700;font-size:15px;line-height:1.5}
 .prompt.mine{background:#1d0f10;border-color:#4a2226}
 .prompt small{display:block;color:var(--muted);font-size:12px;font-weight:600;margin-top:4px}
-.feed{margin-top:8px;max-height:66px;overflow-y:auto;font-size:12px;color:var(--muted);
-  line-height:1.75}
+/* ---------- scoreboard ---------- */
+.board{border-radius:14px;overflow:hidden;background:#15121f;
+  border:1px solid #2a2140}
+.bteams{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
+  gap:8px;padding:12px 12px 10px;position:relative}
+.bteams::before,.bteams::after{content:'';position:absolute;top:0;bottom:0;
+  width:42%;z-index:0}
+.bteams::before{inset-inline-start:0;
+  background:linear-gradient(to left,transparent,#3b1020)}
+.bteams::after{inset-inline-end:0;
+  background:linear-gradient(to right,transparent,#0e2438)}
+.bteam{display:flex;align-items:center;gap:9px;min-width:0;z-index:1}
+.bteam.away{flex-direction:row-reverse}
+.crest{width:34px;height:34px;border-radius:50%;flex:0 0 auto;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Rakkas',cursive;font-size:17px;color:#fff;
+  box-shadow:0 2px 8px #0006}
+.bteam.home .crest{background:linear-gradient(150deg,var(--attack),#7a0f1f)}
+.bteam.away .crest{background:linear-gradient(150deg,#2b6fa8,var(--defense))}
+.bname{font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.bscore{text-align:center;z-index:1;padding:0 4px}
+.bnum{font-family:'Oswald',sans-serif;font-size:26px;letter-spacing:.06em;
+  background:#0b0912;border:1px solid #2a2140;border-radius:8px;
+  padding:3px 12px;white-space:nowrap}
+.bmeta{font-size:9px;color:var(--muted);font-weight:700;margin-top:4px}
+.bscorers{display:grid;grid-template-columns:1fr 1fr;gap:8px;
+  padding:0 12px 10px;min-height:14px}
+.bcol{font-size:10px;color:var(--muted);line-height:1.85}
+.bcol.away{text-align:left}
+.bcol b{color:var(--ink);font-weight:700}
+.bbar{border-top:1px solid #2a2140;padding:7px 12px;text-align:center;
+  background:#100d19}
+
+/* ---------- commentary ---------- */
+.comm{margin-top:10px;border-radius:14px;overflow:hidden;background:#15121f;
+  border:1px solid #2a2140}
+.commhead{display:flex;align-items:center;justify-content:space-between;
+  padding:9px 12px;border-bottom:1px solid #2a2140}
+.commttl{font-size:12px;font-weight:900;color:var(--ink);
+  border-bottom:2px solid var(--attack-glow);padding-bottom:5px}
+.keyev{display:flex;align-items:center;gap:6px;font-size:10px;
+  color:var(--muted);font-weight:700;cursor:pointer}
+.keyev input{display:none}
+.keyev span{width:26px;height:15px;border-radius:20px;background:#2a2140;
+  position:relative;transition:.15s}
+.keyev span::after{content:'';position:absolute;top:2px;inset-inline-start:2px;
+  width:11px;height:11px;border-radius:50%;background:#6b6b8a;transition:.15s}
+.keyev input:checked + span{background:var(--defense-glow)}
+.keyev input:checked + span::after{inset-inline-start:13px;background:#fff}
+.feed{max-height:184px;overflow-y:auto;font-size:12px;color:var(--muted)}
 .feed b{color:var(--ink);font-weight:700}
+.ev{display:flex;gap:10px;padding:9px 12px;border-bottom:1px solid #221b34}
+.ev:last-child{border-bottom:none}
+.evno{flex:0 0 30px;font-family:'Oswald',sans-serif;font-size:12px;
+  color:var(--muted);padding-top:1px}
+.evbody{flex:1;min-width:0}
+.evttl{font-family:'Rakkas',cursive;font-size:19px;color:var(--ink);
+  line-height:1.15}
+.evtxt{font-size:11.5px;line-height:1.6;margin-top:2px}
+.ev.key{background:#1b1226}
+.ev.key .evno{color:var(--attack-glow)}
+/* a possession change reads like a substitution: one out, one in */
+.swap{margin-top:6px;border-radius:8px;overflow:hidden;border:1px solid #2f2547}
+.swrow{display:flex;align-items:center;gap:7px;padding:6px 8px;font-size:11px;
+  font-weight:700;background:#1e1630}
+.swrow + .swrow{border-top:1px solid #2f2547}
+.swrow .ar{flex:0 0 auto;font-size:12px}
+.swrow.out .ar{color:var(--attack)}
+.swrow.in .ar{color:var(--defense-glow)}
+.swrow .who2{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;color:var(--ink)}
+.evgap{text-align:center;padding:8px;font-size:11px;color:#7a5c3a;
+  font-weight:700;letter-spacing:.2em}
 
 /* ---------- opponents: face-down fans ---------- */
 .oppzone{margin-top:10px;text-align:center}
@@ -247,10 +318,27 @@ input::placeholder{color:#55525f}
   </div>
 
   <div id="game" class="hide">
-    <div class="top">
-      <div><div class="score" id="score">0 — 0</div><div class="who" id="names">—</div></div>
-      <div style="text-align:left"><span class="pill" id="turnpill">—</span>
-        <div class="who" id="deckinfo" style="margin-top:4px">—</div></div>
+    <!-- scoreboard: home block, score, away block, then scorers underneath -->
+    <div class="board">
+      <div class="bteams">
+        <div class="bteam home">
+          <div class="crest" id="crestA">A</div>
+          <div class="bname" id="nameA">—</div>
+        </div>
+        <div class="bscore">
+          <div class="bnum" id="score">0 — 0</div>
+          <div class="bmeta" id="deckinfo">—</div>
+        </div>
+        <div class="bteam away">
+          <div class="crest" id="crestB">B</div>
+          <div class="bname" id="nameB">—</div>
+        </div>
+      </div>
+      <div class="bscorers">
+        <div class="bcol" id="scorersA"></div>
+        <div class="bcol away" id="scorersB"></div>
+      </div>
+      <div class="bbar"><span class="pill" id="turnpill">—</span></div>
     </div>
 
     <div class="oppzone">
@@ -273,7 +361,15 @@ input::placeholder{color:#55525f}
     </div>
 
     <div class="prompt" id="prompt">—</div>
-    <div class="feed" id="feed"></div>
+
+    <div class="comm">
+      <div class="commhead">
+        <span class="commttl">التعليق</span>
+        <label class="keyev"><input type="checkbox" id="keyonly"><span></span>
+          أهم اللقطات</label>
+      </div>
+      <div class="feed" id="feed"></div>
+    </div>
     <div class="hand" id="hand"></div>
     <div class="over hide" id="over"></div>
     <button class="go ghost" id="exitgame" style="margin-top:14px">اخرج من الماتش</button>
@@ -301,24 +397,31 @@ document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
   b.classList.add('on'); mode = b.dataset.mode;
 });
 
-/* ---------------------------------------------------------------- table state
-   The engine clears its chain the moment a possession resolves, and a guest
-   receives views over Firebase where intermediate states can coalesce. So the
-   table history is built from v.log — every view carries the last 12 events,
-   each with a monotonic id, and card plays name their seat:
+/* ------------------------------------------------------- table + commentary
+   Both are built from v.log. Every view carries the last 12 events, each with
+   a monotonic id, and the card plays name their seat:
 
      attack_played  {seat, face}
      defense_played {seat, face, stopped}
      own_goal_played{seat}            -> OWN_GOAL
-     var            {seat, call, ...} -> VAR
+     var            {seat, call, flip, overturned}
+     goal / goal_overturned / possession_conceded / counter_attack / match_over
 
-   Tracking the highest id already consumed means nothing is double-counted and
-   nothing inside the 12-event window is lost.                                */
-let log = [];           // [{face, seat} | {sep:true}]
-let lastEvent = 0;      // highest event id folded into log
-let drawnCount = 0;     // history entries already animated
-let pendingSep = false; // a possession ended; divide before the next card
-let lastPossession = null;  // turnovers are silent, so watch this directly
+   Tracking the highest id consumed means nothing is double-counted and nothing
+   inside the 12-event window is lost.
+
+   TWO consumers, deliberately different:
+     table  — the CURRENT chain only. Cleared whenever possession resolves, the
+              way a real table is swept between possessions.
+     feed   — the whole match, newest first, as a commentary timeline. This is
+              where history lives now, so the table does not have to hoard it.  */
+let table = [];         // [{face, seat}] — current chain, wiped each possession
+let feed = [];          // [{no, kind, ...}] — full match, newest rendered first
+let lastEvent = 0;      // highest event id folded in
+let drawnCount = 0;     // table entries already animated
+let sweepTable = false; // possession resolved; clear the table on the next card
+let lastPossession = null;  // turnovers emit no event, so watch this directly
+let cardNo = 0;         // cards played this match — the timeline marker
 
 /* LUCK deals the card itself, so "pulling" is a UI gate: a newly arrived card
    sits face-down and unplayable until the deck is tapped. No rules change. */
@@ -336,54 +439,62 @@ const ENDS_POSSESSION = new Set([
   'goal', 'goal_overturned', 'possession_conceded', 'counter_attack', 'match_over',
 ]);
 
-/** Fold any unseen events from this view into the table history. */
+/** Fold any unseen events from this view into the table and the commentary. */
 function foldEvents(v) {
   const evs = (v.log || []).filter(e => e && typeof e.id === 'number');
+  if (!evs.length) { watchPossession(v); return; }
 
-  if (!evs.length) return;
-
-  /* v.log is only the last 12 events. On a bad connection a guest can miss
-     more than that between updates, and those cards are simply gone — the
-     engine cannot be asked for them again. Same for a player who reconnects
-     mid-match. Rather than show a history that is quietly wrong, mark the
-     hole. A fresh match starts at id 1, so no marker appears there. */
+  /* v.log is only the last 12 events. On a bad connection, or for a player
+     rejoining mid-match, more than that can be missed and those events are
+     gone for good — the engine cannot be asked for them again. Mark the hole
+     rather than show a commentary that is quietly wrong. A fresh match starts
+     at id 1, so no marker appears there. */
   const oldest = Math.min(...evs.map(e => e.id));
-  if (oldest > lastEvent + 1) log.push({gap: true});
+  if (oldest > lastEvent + 1) feed.push({kind: 'gap'});
 
   for (const e of evs) {
     if (e.id <= lastEvent) continue;
     lastEvent = e.id;
+
     const make = CARD_EVENTS[e.kind];
     if (make) {
-      if (pendingSep) { log.push({sep: true}); pendingSep = false; }
-      log.push(make(e));
-    } else if (ENDS_POSSESSION.has(e.kind) && log.length) {
-      pendingSep = true;   // inserted lazily so the strip never ends on a line
+      cardNo += 1;
+      if (sweepTable) { table = []; drawnCount = 0; sweepTable = false; }
+      table.push(make(e));
+      feed.push({no: cardNo, ...e});
+    } else {
+      feed.push({no: cardNo, ...e});
+      if (ENDS_POSSESSION.has(e.kind)) sweepTable = true;
     }
-    /* A stopped attack closes the exchange. Checked AFTER the card is pushed,
-       because a defending Interception belongs to the ATTACKER's exchange —
-       it closes that possession, it does not open the interceptor's. */
-    if (e.kind === 'defense_played' && e.stopped && log.length) pendingSep = true;
-  }
 
-  /* A TURNOVER EMITS NO EVENT OF ITS OWN — the engine just flips possession
-     and clears the chain. Without this, an Interception followed by the
-     winner's own Shot renders as one player laying down two cards in a single
-     turn. Catches every cause without enumerating them: foul, concede,
-     counter-attack, neutral stops. */
-  if (lastPossession !== null && v.possession !== lastPossession && log.length) {
-    pendingSep = true;
+    /* A stopped attack closes the exchange. Checked AFTER the card is pushed,
+       because a defending Interception belongs to the ATTACKER's exchange — it
+       closes that possession rather than opening the interceptor's. */
+    if (e.kind === 'defense_played' && e.stopped) sweepTable = true;
+  }
+  watchPossession(v);
+}
+
+/* A TURNOVER EMITS NO EVENT OF ITS OWN — the engine just flips possession and
+   clears the chain. Without this, an Interception followed by the winner's own
+   Shot would sit on the table as if it were one turn. Catches every cause
+   without enumerating them: foul, concede, counter-attack, neutral stops. */
+function watchPossession(v) {
+  if (lastPossession !== null && v.possession !== lastPossession) {
+    sweepTable = true;
   }
   lastPossession = v.possession;
 }
 
-/** Reset the table between matches. */
+/** Reset table and commentary between matches. */
 function resetTable() {
-  log = []; lastEvent = 0; drawnCount = 0; pendingSep = false;
-  lastPossession = null;
+  table = []; feed = [];
+  lastEvent = 0; drawnCount = 0; cardNo = 0;
+  sweepTable = false; lastPossession = null;
   prevHand = []; facedown = []; busyDeck = false;
   $('fan').innerHTML = '';
   $('hist').innerHTML = '';
+  $('feed').innerHTML = '';
 }
 
 function makeRoom() {
@@ -455,6 +566,7 @@ async function exitRoom() {
   $('lobby').classList.remove('hide');
 }
 
+$('keyonly').onchange = () => { if (view) renderFeed(); };
 $('exitwait').onclick = exitRoom;
 $('exitgame').onclick = exitRoom;
 
@@ -469,10 +581,7 @@ const PHASE_TEXT = {
 
 function render() {
   const v = view;
-  $('score').textContent = `${v.score[0]} — ${v.score[1]}`;
-  $('names').textContent = v.seats.map(s =>
-    `${s.name}${s.index === v.you ? ' (انت)' : ''} · ${s.cards}`).join(' | ');
-  $('deckinfo').textContent = `الهدف ${v.goals_to_win} أهداف`;
+  // score and deck counts are drawn by renderBoard() now
   $('deckleft').textContent = v.deck_left;
   $('discard').textContent = v.discard;
 
@@ -487,8 +596,8 @@ function render() {
   $('prompt').innerHTML = mine ? `${p[0]}<small>${p[1]}</small>`
     : `الاستحواذ مع ${v.seats[v.possession]?.name || ''}<small>مستني اللاعب التاني</small>`;
 
-  $('feed').innerHTML = (v.log || []).slice(-4).reverse().map(logLine).filter(Boolean).join('<br>');
-
+  renderBoard();
+  renderFeed();
   renderFan();
   renderTable();
   renderDeck();
@@ -510,22 +619,140 @@ function render() {
   } else $('over').classList.add('hide');
 }
 
-function logLine(e) {
-  const n = s => view.seats[s]?.name || '';
+/* Commentary, newest first, marked by the running card count. Big moments get
+   a headline; a possession change renders as an out/in pair, the way a
+   substitution does on a broadcast timeline. */
+const KEY_EVENTS = new Set([
+  'goal', 'goal_overturned', 'var', 'own_goal_played', 'match_over',
+  'counter_attack',
+]);
+
+/* Scoreboard. Your team is always the home block on the right, so the score
+   reads the same way round every match. Scorers are listed under each side with
+   the card count at which they scored. */
+function renderBoard() {
+  const v = view;
+  const mine = v.you % 2;
+  const other = 1 - mine;
+  const nameOf = team => v.seats.filter(s => s.team === team)
+    .map(s => s.name).join(' · ') || (team === 0 ? 'فريق 1' : 'فريق 2');
+
+  $('nameA').textContent = nameOf(mine);
+  $('nameB').textContent = nameOf(other);
+  $('crestA').textContent = (nameOf(mine)[0] || 'A');
+  $('crestB').textContent = (nameOf(other)[0] || 'B');
+  $('score').textContent = `${v.score[mine]} — ${v.score[other]}`;
+  $('deckinfo').textContent = `الهدف ${v.goals_to_win} · الديك ${v.deck_left}`;
+
+  const goals = {[mine]: [], [other]: []};
+  for (const e of feed) {
+    if (e.kind !== 'goal') continue;
+    const seat = v.seats[e.scorer];
+    if (!seat) continue;
+    goals[seat.team].push(
+      `<b>${seat.name}</b> ${e.no || ''}${e.face === 'OWN_GOAL' ? ' (OG)' : ''}`);
+  }
+  $('scorersA').innerHTML = goals[mine].join('<br>');
+  $('scorersB').innerHTML = goals[other].join('<br>');
+}
+
+function renderFeed() {
+  const box = $('feed');
+  const keyOnly = $('keyonly').checked;
+  const rows = feed.filter(e => !keyOnly || e.kind === 'gap' || KEY_EVENTS.has(e.kind));
+  box.innerHTML = '';
+  if (!rows.length) {
+    box.innerHTML = '<div class="evgap">لسه مفيش حاجة</div>';
+    return;
+  }
+  for (const e of rows.slice().reverse()) {
+    if (e.kind === 'gap') {
+      const g = document.createElement('div');
+      g.className = 'evgap';
+      g.textContent = '· · ·';
+      g.title = 'حاجات حصلت وانت مش متصل';
+      box.appendChild(g);
+      continue;
+    }
+    const line = commLine(e);
+    if (!line) continue;
+    const row = document.createElement('div');
+    row.className = 'ev' + (KEY_EVENTS.has(e.kind) ? ' key' : '');
+    row.innerHTML = `<div class="evno">${e.no || ''}</div><div class="evbody">${line}</div>`;
+    box.appendChild(row);
+  }
+}
+
+function commLine(e) {
+  const n = s => (view.seats[s] || {}).name || '';
+  const ttl = t => `<div class="evttl">${t}</div>`;
+  const txt = t => `<div class="evtxt">${t}</div>`;
+  const swap = (out, inn) =>
+    `<div class="swap">
+       <div class="swrow out"><span class="ar">◀</span><span class="who2">${out}</span></div>
+       <div class="swrow in"><span class="ar">▶</span><span class="who2">${inn}</span></div>
+     </div>`;
+
   switch (e.kind) {
-    case 'attack_played':  return `<b>${n(e.seat)}</b> لعب ${AR(e.face)}`;
-    case 'defense_played': return `<b>${n(e.seat)}</b> رد بـ ${AR(e.face)}` +
-      (e.stopped ? ' — وقفها' : ' — مظبطتش');
-    case 'goal':           return `⚽ <b>${n(e.scorer)}</b> سجل! ${e.score[0]} — ${e.score[1]}`;
-    case 'goal_overturned':return `❌ الهدف اتلغى بالـ VAR`;
-    case 'var':            return `📺 VAR: ${e.flip === 'heads' ? 'وش' : 'ضهر'}`;
-    case 'own_goal_played':return `🔄 <b>${n(e.seat)}</b> لعب أون جول`;
-    case 'counter_attack': return `⚡ <b>${n(e.seat)}</b> بيرتد بـ ${e.cards} كروت`;
-    case 'possession_conceded': return `<b>${n(e.seat)}</b> سلّم الاستحواذ`;
-    case 'chain_passed':   return `${AR(e.face)} عدّت بلا رد`;
-    case 'reshuffled':     return `<b>${n(e.seat)}</b> بدّل كروت`;
-    case 'match_over':     return `🏁 الماتش خلص`;
-    default: return '';
+    case 'attack_played':
+      return txt(`<b>${n(e.seat)}</b> لعب ${AR(e.face)}.`);
+
+    case 'defense_played':
+      return e.stopped
+        ? ttl('الهجمة وقفت') + txt(`<b>${n(e.seat)}</b> رد بـ ${AR(e.face)} وقطع الهجمة.`)
+        : txt(`<b>${n(e.seat)}</b> حاول بـ ${AR(e.face)} — مظبطتش.`);
+
+    case 'stage_passed':
+      return txt(`${AR(e.face)} عدّت، الهجمة كمّلت.`);
+
+    case 'goal':
+      return ttl('جـــول') +
+        txt(`<b>${n(e.scorer)}</b> سجل بـ ${AR(e.face)}. النتيجة ${e.score[0]} — ${e.score[1]}.`);
+
+    case 'own_goal_played':
+      return ttl('أون جول') +
+        txt(`<b>${n(e.seat)}</b> لعب أون جول وقلب الشوطة لصالحه.`);
+
+    case 'var':
+      return ttl('مراجعة VAR') +
+        txt(`<b>${n(e.seat)}</b> طلب المراجعة على ${AR(e.reviewing || 'GOAL')} ` +
+            `وقال ${e.call === 'heads' ? 'وش' : 'ضهر'} — العملة طلعت ` +
+            `<b>${e.flip === 'heads' ? 'وش' : 'ضهر'}</b>، ` +
+            (e.overturned ? 'القرار اتلغى.' : 'القرار اتأكد.'));
+
+    case 'goal_overturned':
+      return ttl('الهدف اتلغى') + txt(`المراجعة لغت هدف <b>${n(e.scorer)}</b>.`);
+
+    case 'counter_attack':
+      return ttl('هجمة مرتدة') +
+        txt(`<b>${n(e.seat)}</b> كسب الكورة وطلع بـ ${e.cards} ` +
+            `${e.cards === 1 ? 'كارت' : 'كروت'} على طول.`) +
+        swap(`الاستحواذ سابق`, `${n(e.seat)} بيهجم`);
+
+    case 'possession_conceded':
+      /* The event carries only {seat} — the side that gave the ball up. The
+         engine has already moved possession by the time this view arrives, so
+         the receiver is read from the view instead of an invented field. */
+      return ttl('الاستحواذ اتسلّم') +
+        txt(`<b>${n(e.seat)}</b> مالوش كارت هجومي يلعبه.`) +
+        swap(n(e.seat), n(view.possession));
+
+    case 'leftover_burned':
+      return txt(`كروت <b>${n(e.seat)}</b> الفاضلة اتحرقت.`);
+
+    case 'reshuffled':
+      return txt(`<b>${n(e.seat)}</b> بدّل كروت من الديك.`);
+
+    case 'deck_recycled':
+      return txt('الديك خلص — الحرق اتخلط ورجع ديك.');
+
+    case 'match_over':
+      return ttl('نهاية الماتش') +
+        txt(`النتيجة النهائية ${e.score[0]} — ${e.score[1]}` +
+            (e.reason === 'end_match' ? ' بكارت نهاية الماتش.' : '.'));
+
+    default:
+      return null;
   }
 }
 
@@ -555,48 +782,24 @@ function renderFan() {
     `${s.name}${s.team === v.seats[v.you].team ? ' (معاك)' : ''} · ${s.cards}`).join('  |  ');
 }
 
-/* The whole match history, newest last. Only the final two are legible; the
-   rest collapse into an overlapping pile that scrolls. */
+/* The CURRENT chain only. The table is swept whenever possession resolves, so
+   every card here belongs to the possession under way and all of them stay
+   legible — the match history lives in the commentary panel instead. */
 function renderTable() {
   const box = $('hist');
   box.innerHTML = '';
-  const cards = log.filter(e => !e.sep && !e.gap);
-  const cut = cards.length - 2;
-  let seen = 0;
-
-  log.forEach(e => {
-    if (e.sep) {
-      const d = document.createElement('div');
-      d.className = 'sep';
-      box.appendChild(d);
-      return;
-    }
-    if (e.gap) {
-      const d = document.createElement('div');
-      d.className = 'gap';
-      d.textContent = '···';
-      d.title = 'كروت اتلعبت وانت مش متصل';
-      box.appendChild(d);
-      return;
-    }
-    const idx = seen++;
-    const old = idx < cut;
+  table.forEach((e, i) => {
     const byMe = e.seat === view.you;
     const el = document.createElement('div');
     el.className = `hcard ${KIND(e.face)} ${byMe ? 'mine' : 'theirs'}` +
-      (old ? ' old' : '') +
-      (idx >= drawnCount ? (byMe ? ' fresh' : ' freshflip') : '');
-    el.innerHTML = old
-      ? `<div class="edge"></div>${icon(e.face, 15)}`
-      : `<div class="en">${(CARDS[e.face] || {}).en || e.face}</div>
-         <div>${icon(e.face, 19)}</div><div class="nm">${AR(e.face)}</div>
-         <div class="by">${(view.seats[e.seat] || {}).name || ''}</div>`;
+      (i >= drawnCount ? (byMe ? ' fresh' : ' freshflip') : '');
+    el.innerHTML = `<div class="en">${(CARDS[e.face] || {}).en || e.face}</div>
+       <div>${icon(e.face, 22)}</div><div class="nm">${AR(e.face)}</div>
+       <div class="by">${(view.seats[e.seat] || {}).name || ''}</div>`;
     box.appendChild(el);
   });
-
-  drawnCount = cards.length;
-  $('tablehint').classList.toggle('hide', cards.length > 0);
-  box.scrollLeft = box.scrollWidth;
+  drawnCount = table.length;
+  $('tablehint').classList.toggle('hide', table.length > 0);
 }
 
 function flyCard(i) {

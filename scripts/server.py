@@ -31,7 +31,7 @@ from engine import Game, bot_action
 STATIC = Path(__file__).resolve().parent.parent / "static"
 CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"   # no O/0, no I/1/L
 FORMATS = {"1v1": ("ONE_V_ONE", 2), "bot": ("ONE_V_ONE", 2), "2v2": ("TWO_V_TWO", 4)}
-BOT_DELAY = float(__import__("os").environ.get("OG_BOT_DELAY", "0.9"))
+BOT_DELAY = float(__import__("os").environ.get("OG_BOT_DELAY", "1.1"))
 ABANDON_GRACE = 180   # seconds a room survives with nobody connected
 
 

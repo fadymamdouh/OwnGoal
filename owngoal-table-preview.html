@@ -1082,6 +1082,9 @@ let game = null;
 let view = null;
 let busy = false;
 
+const BEAT = 1100;            // pause between bot actions
+const TURNOVER_BEAT = 2000;   // longer pause when the ball changes hands
+
 /* Every card played this match, in order. The engine clears its chain when a
    possession ends, so the table history is kept here instead. */
 let log = [];
@@ -1227,7 +1230,7 @@ function drawFrom(action) {
     facedown = [];
     refresh(ME);
     busy = false;
-    setTimeout(botTurn, 420);
+    setTimeout(botTurn, BEAT);
   }, 340 + (n - 1) * 110);
 }
 
@@ -1290,7 +1293,7 @@ function play(el, action) {
     try { game.apply(ME, clean); } catch (e) { console.warn(e.message); }
     refresh(ME);
     busy = false;
-    setTimeout(botTurn, 460);
+    setTimeout(botTurn, BEAT);
   }, 250);
 }
 
@@ -1301,9 +1304,15 @@ function botTurn() {
   if (actor === undefined || actor === ME) return;
   const a = botAction(game, actor);
   if (!a) return;
+  const before = game.log.length;
   game.apply(actor, a);
+  const fresh = game.log.slice(before);
   refresh(actor);
-  setTimeout(botTurn, 700);
+  // a turnover needs a longer beat: two cards, two different possessions
+  const turnover = fresh.some(e =>
+    (e.kind === 'defense_played' && e.stopped) ||
+    e.kind === 'counter_attack' || e.kind === 'goal');
+  setTimeout(botTurn, turnover ? TURNOVER_BEAT : BEAT);
 }
 
 const PHASE = {

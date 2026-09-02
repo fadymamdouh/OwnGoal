@@ -100,7 +100,15 @@ export class Room {
   }
 
   _runBot() {
-    // Let the bot act until the turn returns to the human.
+    /* Let the bot act until the turn returns to the human.
+       A turnover is where play is hardest to follow: a successful defense wins
+       the ball, so the bot answers your attack and then immediately attacks
+       with a card of its own. Those two cards belong to different possessions,
+       and the divider on the table says so, but they still need a longer beat
+       between them or they read as one move. */
+    const BEAT = 1100;
+    const TURNOVER_BEAT = 2000;
+
     const step = () => {
       if (!this.game || this.game.over) return;
       const actor = this.game.seats.map(s => s.index)
@@ -108,11 +116,16 @@ export class Room {
       if (actor === undefined || actor === this.seat) return;
       const action = botAction(this.game, actor);
       if (!action) return;
+      const before = this.game.log.length;
       this.game.apply(actor, action);
+      const fresh = this.game.log.slice(before);
       this._publish();
-      setTimeout(step, 700);
+      const turnover = fresh.some(e =>
+        (e.kind === 'defense_played' && e.stopped) ||
+        e.kind === 'counter_attack' || e.kind === 'goal');
+      setTimeout(step, turnover ? TURNOVER_BEAT : BEAT);
     };
-    setTimeout(step, 700);
+    setTimeout(step, BEAT);
   }
 
   // ------------------------------------------------------------- online

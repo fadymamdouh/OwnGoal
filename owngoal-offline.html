@@ -17,8 +17,53 @@
 body{background:#0d0d16;color:var(--ink);font-family:'Cairo',sans-serif;
   min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
 button{font-family:inherit;cursor:pointer;border:none}
-.wrap{flex:1;display:flex;flex-direction:column;max-width:520px;margin:0 auto;width:100%;
+/* The 520px cap lives on each SCREEN, not on .wrap, so the match can go wide
+   on a desktop while the lobby stays a comfortable reading column. */
+.wrap{flex:1;display:flex;flex-direction:column;margin:0 auto;width:100%;
   padding:14px 12px 0}
+#lobby,#waiting{max-width:520px;margin:0 auto;width:100%}
+#game{max-width:520px;margin:0 auto;width:100%}
+
+/* ---------- desktop: three columns instead of one tall scroll ---------- */
+@media (min-width:1000px){
+  #game{
+    max-width:1240px;
+    display:grid;
+    gap:14px;
+    align-items:start;
+    grid-template-columns:320px minmax(0,1fr) 250px;
+    grid-template-areas:
+      "board board board"
+      "comm  play  side";
+  }
+  #game.hide{display:none}
+  .board{grid-area:board}
+  .gplay{grid-area:play;display:flex;flex-direction:column}
+  .comm{grid-area:comm;margin-top:0;position:sticky;top:14px}
+  .gside{grid-area:side;position:sticky;top:14px}
+  /* the commentary is a column now, so let it run tall */
+  .feed{max-height:min(64vh,620px)}
+  /* more room for the table and the hand */
+  .table{min-height:250px}
+  .hand{padding-bottom:20px}
+  .bnum{font-size:34px;padding:5px 18px}
+  .crest{width:44px;height:44px;font-size:22px}
+  .bname{font-size:14px}
+  .fan{min-height:80px}
+  .back{width:54px;height:74px;margin-inline-start:-22px}
+}
+
+/* ---------- side panel (desktop) / footer (mobile) ---------- */
+.gside{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.info{background:#15121f;border:1px solid #2a2140;border-radius:14px;
+  padding:11px 13px}
+.irow{display:flex;justify-content:space-between;align-items:center;
+  font-size:11.5px;color:var(--muted);padding:4px 0}
+.irow + .irow{border-top:1px solid #221b34}
+.irow b{color:var(--ink);font-family:'Oswald',sans-serif;font-size:13px}
+.ihint{margin-top:9px;padding-top:9px;border-top:1px solid #221b34;
+  font-size:10.5px;color:var(--muted);line-height:1.8}
+.ihint b{color:var(--ink)}
 
 /* ---------- lobby ---------- */
 .brand{font-family:'Rakkas',cursive;font-size:52px;text-align:center;line-height:1;
@@ -356,6 +401,7 @@ input::placeholder{color:#55525f}
       <div class="bbar"><span class="pill" id="turnpill">—</span></div>
     </div>
 
+    <div class="gplay">
     <div class="oppzone">
       <div class="fan" id="fan"></div>
       <div class="who" id="oppname">—</div>
@@ -376,6 +422,14 @@ input::placeholder{color:#55525f}
     </div>
 
     <div class="prompt" id="prompt">—</div>
+    <div class="hand" id="hand"></div>
+    <div class="pickbar hide" id="pickbar">
+      <span class="txt" id="picktxt">—</span>
+      <button class="clr" id="pickclr">تراجع</button>
+      <button id="pickok" disabled>تأكيد</button>
+    </div>
+    <div class="over hide" id="over"></div>
+    </div><!-- /gplay -->
 
     <div class="comm">
       <div class="commhead">
@@ -385,14 +439,18 @@ input::placeholder{color:#55525f}
       </div>
       <div class="feed" id="feed"></div>
     </div>
-    <div class="hand" id="hand"></div>
-    <div class="pickbar hide" id="pickbar">
-      <span class="txt" id="picktxt">—</span>
-      <button class="clr" id="pickclr">تراجع</button>
-      <button id="pickok" disabled>تأكيد</button>
+    <div class="gside">
+      <div class="info">
+        <div class="irow"><span>المود</span><b id="imode">—</b></div>
+        <div class="irow"><span>الوضع</span><b id="ifmt">—</b></div>
+        <div class="irow"><span>الهدف</span><b id="igoal">—</b></div>
+        <div class="ihint">
+          الكارت المقسوم بنصين — <b>فوق هجوم</b> وتحت <b>دفاع</b>.
+          اللي ينفع تلعبه بيلمع. ولما تلعب أي نص، الكارت كله بيتحرق.
+        </div>
+      </div>
+      <button class="go ghost" id="exitgame">اخرج من الماتش</button>
     </div>
-    <div class="over hide" id="over"></div>
-    <button class="go ghost" id="exitgame" style="margin-top:14px">اخرج من الماتش</button>
   </div>
 </div>
 <script>
@@ -1649,6 +1707,11 @@ function renderBoard() {
   }
   $('scorersA').innerHTML = goals[mine].join('<br>');
   $('scorersB').innerHTML = goals[other].join('<br>');
+
+  // side panel — fills the desktop right column, sits under the hand on mobile
+  $('imode').textContent = v.mode === 'STRATEGY' ? 'تكتيك' : 'حظ';
+  $('ifmt').textContent = v.match_type === 'TWO_V_TWO' ? '2 ضد 2' : '1 ضد 1';
+  $('igoal').textContent = `${v.goals_to_win} أهداف`;
 }
 
 function renderFeed() {

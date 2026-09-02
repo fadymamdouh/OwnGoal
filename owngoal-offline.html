@@ -24,34 +24,7 @@ button{font-family:inherit;cursor:pointer;border:none}
 #lobby,#waiting{max-width:520px;margin:0 auto;width:100%}
 #game{max-width:520px;margin:0 auto;width:100%}
 
-/* ---------- desktop: three columns instead of one tall scroll ---------- */
-@media (min-width:1000px){
-  #game{
-    max-width:1240px;
-    display:grid;
-    gap:14px;
-    align-items:start;
-    grid-template-columns:320px minmax(0,1fr) 250px;
-    grid-template-areas:
-      "board board board"
-      "comm  play  side";
-  }
-  #game.hide{display:none}
-  .board{grid-area:board}
-  .gplay{grid-area:play;display:flex;flex-direction:column}
-  .comm{grid-area:comm;margin-top:0;position:sticky;top:14px}
-  .gside{grid-area:side;position:sticky;top:14px}
-  /* the commentary is a column now, so let it run tall */
-  .feed{max-height:min(64vh,620px)}
-  /* more room for the table and the hand */
-  .table{min-height:250px}
-  .hand{padding-bottom:20px}
-  .bnum{font-size:34px;padding:5px 18px}
-  .crest{width:44px;height:44px;font-size:22px}
-  .bname{font-size:14px}
-  .fan{min-height:80px}
-  .back{width:54px;height:74px;margin-inline-start:-22px}
-}
+
 
 /* ---------- side panel (desktop) / footer (mobile) ---------- */
 .gside{display:flex;flex-direction:column;gap:10px;margin-top:12px}
@@ -336,6 +309,51 @@ input::placeholder{color:#55525f}
 .over{text-align:center;padding:22px 12px}
 .over .big{font-family:'Rakkas',cursive;font-size:40px;line-height:1.1}
 .hide{display:none!important}
+/* ---------- desktop: three columns instead of one tall scroll ---------- */
+@media (min-width:1000px){
+  /* During a match the page itself does not scroll — the whole board fits the
+     viewport and each column scrolls internally if it needs to. The lock is
+     tied to body.playing so the lobby keeps normal page scrolling. */
+  body.playing{height:100vh;overflow:hidden}
+  body.playing .wrap{height:100vh;overflow:hidden;padding-bottom:14px}
+
+  #game{
+    max-width:1240px;
+    display:grid;
+    gap:14px;
+    grid-template-columns:320px minmax(0,1fr) 250px;
+    grid-template-rows:auto minmax(0,1fr);   /* row 2 takes the rest */
+    grid-template-areas:
+      "board board board"
+      "comm  play  side";
+    height:100%;
+    min-height:0;
+  }
+  #game.hide{display:none}
+  .board{grid-area:board}
+  /* min-height:0 on every column, or a grid child refuses to shrink and the
+     page grows a scrollbar again */
+  .gplay{grid-area:play;display:flex;flex-direction:column;
+    min-height:0;overflow-y:auto}
+  /* Nothing in the play column may be squashed to fit. The cards are 168px
+     tall and a flex child will happily shrink to nothing — on a 600px-high
+     window the hand collapsed to 32px. The column scrolls instead. */
+  .gplay > *{flex:0 0 auto}
+  .comm{grid-area:comm;margin-top:0;min-height:0;
+    display:flex;flex-direction:column}
+  .gside{grid-area:side;min-height:0;overflow-y:auto}
+  /* the commentary fills its column to the bottom, then scrolls */
+  .commhead{flex:0 0 auto}
+  .feed{max-height:none;flex:1 1 auto;min-height:0;overflow-y:auto}
+  /* more room for the table and the hand */
+  .table{min-height:250px}
+  .hand{padding-bottom:20px}
+  .bnum{font-size:34px;padding:5px 18px}
+  .crest{width:44px;height:44px;font-size:22px}
+  .bname{font-size:14px}
+  .fan{min-height:80px}
+  .back{width:54px;height:74px;margin-inline-start:-22px}
+}
 </style>
 </head>
 <body>
@@ -1567,6 +1585,7 @@ function makeRoom() {
       view = v;
       $('waiting').classList.add('hide');
       $('game').classList.remove('hide');
+      document.body.classList.add('playing');
       render();
     },
     onLobby: info => {
@@ -1580,7 +1599,8 @@ function makeRoom() {
         `<div class="hint">مستني ${info.size - info.players.length} لاعب كمان</div>`;
     },
     onError: msg => { alert(msg); $('lobby').classList.remove('hide');
-                      $('waiting').classList.add('hide'); },
+                      $('waiting').classList.add('hide');
+                      document.body.classList.remove('playing'); },
   });
 }
 
@@ -1614,6 +1634,7 @@ async function exitRoom() {
   $('game').classList.add('hide');
   $('waiting').classList.add('hide');
   $('lobby').classList.remove('hide');
+  document.body.classList.remove('playing');
 }
 
 $('keyonly').onchange = () => { if (view) renderFeed(); };

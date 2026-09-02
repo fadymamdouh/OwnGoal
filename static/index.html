@@ -22,11 +22,12 @@
 body{background:#0d0d16;color:var(--ink);font-family:'Cairo',sans-serif;
   min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
 button{font-family:inherit;cursor:pointer;border:none}
-/* Wider column on a desktop — this client has no side panels, so it simply
-   gets more breathing room rather than the Firebase client's grid. */
-@media (min-width:1000px){ .wrap{max-width:720px} }
 .wrap{flex:1;display:flex;flex-direction:column;max-width:520px;margin:0 auto;width:100%;
   padding:14px 12px 0}
+/* Wider column on a desktop — this client has no side panels, so it simply
+   gets more breathing room rather than the Firebase client's grid.
+   AFTER the base rule, or the 520px cap below would override it. */
+@media (min-width:1000px){ .wrap{max-width:720px} }
 
 /* ---------- lobby ---------- */
 .brand{font-family:'Rakkas',cursive;font-size:52px;text-align:center;line-height:1;

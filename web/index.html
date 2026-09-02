@@ -336,14 +336,16 @@ html::-webkit-scrollbar-thumb{background:#2a2140;border-radius:3px}
     display:grid;
     gap:14px;
     grid-template-columns:320px minmax(0,1fr) 250px;
-    grid-template-rows:minmax(0,1fr);
+    grid-template-rows:auto minmax(0,1fr);
     grid-template-areas:
+      "comm play board"
       "comm play side";
     height:100%;
     min-height:0;
   }
   #game.hide{display:none}
-  /* board lives inside .gside — no special hiding needed */
+  .board{grid-area:board}
+  .gside{grid-area:side}
   /* min-height:0 on every column, or a grid child refuses to shrink and the
      page grows a scrollbar again */
   .gplay{grid-area:play;display:flex;flex-direction:column;
@@ -363,7 +365,7 @@ html::-webkit-scrollbar-thumb{background:#2a2140;border-radius:3px}
   /* commentary and play columns run from the very top now, matching gside */
   .comm > .commhead{border-radius:14px 14px 0 0}
   .gside{grid-area:side;min-height:0;display:flex;flex-direction:column;gap:10px;
-    overflow-y:auto}
+    overflow-y:auto;align-self:start}
   .gside .board{flex:0 0 auto}
   /* the commentary fills its column to the bottom, then scrolls */
   .commhead{flex:0 0 auto}
@@ -419,9 +421,27 @@ html::-webkit-scrollbar-thumb{background:#2a2140;border-radius:3px}
   </div>
 
   <div id="game" class="hide">
-    <!-- board is a direct child of gside on desktop via CSS/JS placement.
-         Here it stays as a direct child of #game at the source level, so
-         the grid can assign it. The CSS hides it except inside .gside. -->
+    <div class="board">
+      <div class="bteams">
+        <div class="bteam home">
+          <div class="crest" id="crestA">A</div>
+          <div class="bname" id="nameA">—</div>
+        </div>
+        <div class="bscore">
+          <div class="bnum" id="score">0 — 0</div>
+          <div class="bmeta" id="deckinfo">—</div>
+        </div>
+        <div class="bteam away">
+          <div class="crest" id="crestB">B</div>
+          <div class="bname" id="nameB">—</div>
+        </div>
+      </div>
+      <div class="bscorers">
+        <div class="bcol" id="scorersA"></div>
+        <div class="bcol away" id="scorersB"></div>
+      </div>
+      <div class="bbar"><span class="pill" id="turnpill">—</span></div>
+    </div>
     <div class="gplay">
     <div class="oppzone">
       <div class="fan" id="fan"></div>
@@ -451,7 +471,6 @@ html::-webkit-scrollbar-thumb{background:#2a2140;border-radius:3px}
     </div>
     <div class="over hide" id="over"></div>
     </div>
-
     <div class="comm">
       <div class="commhead">
         <span class="commttl">التعليق</span>
@@ -460,29 +479,7 @@ html::-webkit-scrollbar-thumb{background:#2a2140;border-radius:3px}
       </div>
       <div class="feed" id="feed"></div>
     </div>
-
     <div class="gside">
-      <div class="board">
-      <div class="bteams">
-        <div class="bteam home">
-          <div class="crest" id="crestA">A</div>
-          <div class="bname" id="nameA">—</div>
-        </div>
-        <div class="bscore">
-          <div class="bnum" id="score">0 — 0</div>
-          <div class="bmeta" id="deckinfo">—</div>
-        </div>
-        <div class="bteam away">
-          <div class="crest" id="crestB">B</div>
-          <div class="bname" id="nameB">—</div>
-        </div>
-      </div>
-      <div class="bscorers">
-        <div class="bcol" id="scorersA"></div>
-        <div class="bcol away" id="scorersB"></div>
-      </div>
-      <div class="bbar"><span class="pill" id="turnpill">—</span></div>
-    </div>
       <div class="info">
         <div class="irow"><span>المود</span><b id="imode">—</b></div>
         <div class="irow"><span>الوضع</span><b id="ifmt">—</b></div>
@@ -786,6 +783,10 @@ function renderBoard() {
   }
   $('scorersA').innerHTML = goals[mine].join('<br>');
   $('scorersB').innerHTML = goals[other].join('<br>');
+
+  // sync the mobile board copy (same content, no IDs — just innerHTML mirror)
+  const mb = document.getElementById('board-mobile');
+  if (mb) mb.innerHTML = document.querySelector('.gside .board').innerHTML;
 
   // side panel — fills the desktop right column, sits under the hand on mobile
   $('imode').textContent = v.mode === 'STRATEGY' ? 'تكتيك' : 'حظ';

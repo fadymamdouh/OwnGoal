@@ -87,8 +87,30 @@ input::placeholder{color:#55525f}
 .card .ln{font-size:8.5px;line-height:1.35;font-weight:700;opacity:.92}
 .card .bar{height:3px;border-radius:2px;margin-top:5px}
 .tick{position:absolute;top:5px;left:5px;font-size:9px;font-weight:900;color:var(--defense-glow)}
-.face2{position:absolute;inset:0;background:inherit;display:flex;flex-direction:column;
-  padding:7px 6px;text-align:center}
+/* A split card is ONE physical card carrying two faces. Both are always shown,
+   because which one you may use depends on whether you are attacking or
+   defending — and because players must be able to reason about the deck
+   (e.g. Block Save shares its card with Super Shot). */
+.card.split{padding:0;justify-content:stretch}
+.half{flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:6px 5px;text-align:center;position:relative;
+  min-height:0}
+.half + .half{border-top:1px dashed #ffffff2e}
+.half.attack{background:linear-gradient(155deg,#2a0a0a,#0d0000)}
+.half.defense{background:linear-gradient(155deg,#040e1a,#030b14)}
+.half.special{background:linear-gradient(155deg,#130820,#070311)}
+.half.rare{background:linear-gradient(155deg,#241705,#0d0700)}
+.half .en{font-family:'Oswald',sans-serif;font-size:6.5px;letter-spacing:.15em;
+  color:var(--muted)}
+.half .ar{font-family:'Rakkas',cursive;font-size:17px;line-height:1.05}
+.half .ico{margin-top:1px}
+.half.off{opacity:.3;filter:grayscale(.7)}
+.half.on{box-shadow:inset 0 0 0 1px var(--defense-glow)}
+.half.on::after{content:'▲';position:absolute;bottom:2px;left:50%;
+  transform:translateX(-50%);font-size:7px;color:var(--defense-glow)}
+.splitmark{position:absolute;top:50%;inset-inline-start:3px;
+  transform:translateY(-50%);font-size:7px;color:#ffffff4d;font-weight:900;
+  letter-spacing:.1em;writing-mode:vertical-rl;z-index:2}
 .dual{display:flex;gap:6px;margin-top:6px}
 .dual button{flex:1;border-radius:8px;padding:8px 4px;font-size:11px;font-weight:700;
   background:#15151f;border:1px solid var(--line);color:var(--ink)}
@@ -305,35 +327,63 @@ function renderHand() {
   box.innerHTML = '';
   v.hand.forEach(c => {
     const acts = v.legal.filter(a => a.card_id === c.id);
-    const face = acts[0]?.face || c.faces[0];
-    const kind = KIND(face);
-    const d = CARDS[face] || {ar: face, en: face, line: ''};
+    const isSplit = c.kind === 'split' && c.faces.length > 1;
+
     const el = document.createElement('div');
-    el.className = `card ${kind}` + (acts.length ? '' : ' dead');
-    el.innerHTML = (acts.some(a => a.counters) ? '<span class="tick">✓ رد صح</span>' : '') +
-      `<div class="en">${d.en}</div><div class="ar">${d.ar}</div>
-       <div class="ico">${icon(face, 34)}</div>
-       <div class="ln">${d.line || ''}</div>
-       <div class="bar" style="background:${FAMILY[kind]}"></div>`;
-    if (acts.length) {
-      el.onclick = () => {
-        if (acts.length === 1) return submit(acts[0]);
-        picked = picked === c.id ? null : c.id;
-        renderHand();
-      };
-      if (picked === c.id) {
-        el.classList.add('pick');
-        const dual = document.createElement('div');
-        dual.className = 'dual';
-        acts.forEach(a => {
-          const b = document.createElement('button');
-          b.textContent = a.call ? (a.call === 'heads' ? 'وش' : 'ضهر') : AR(a.face);
-          b.onclick = ev => { ev.stopPropagation(); submit(a); };
-          dual.appendChild(b);
-        });
-        el.appendChild(dual);
-      }
+    el.className = 'card ' + (isSplit ? 'split' : KIND(acts[0]?.face || c.faces[0]))
+      + (acts.length ? '' : ' dead');
+    if (acts.some(a => a.counters)) {
+      const t = document.createElement('span');
+      t.className = 'tick';
+      t.textContent = '✓ رد صح';
+      el.appendChild(t);
     }
+
+    if (isSplit) {
+      const mark = document.createElement('span');
+      mark.className = 'splitmark';
+      mark.textContent = 'SPLIT';
+      el.appendChild(mark);
+    }
+
+    // A split card renders BOTH halves; a full card renders its single face.
+    (isSplit ? c.faces : [acts[0]?.face || c.faces[0]]).forEach(face => {
+      const kind = KIND(face);
+      const d = CARDS[face] || {ar: face, en: face, line: ''};
+      const faceActs = acts.filter(a => a.face === face);
+      const half = document.createElement('div');
+      half.className = `half ${kind} ` + (faceActs.length ? 'on' : 'off');
+      half.innerHTML = `<div class="en">${d.en}</div>
+        <div class="ar">${d.ar}</div>
+        <div class="ico">${icon(face, isSplit ? 22 : 34)}</div>` +
+        (isSplit ? '' : `<div class="ln">${d.line || ''}</div>
+         <div class="bar" style="background:${FAMILY[kind]}"></div>`);
+
+      if (faceActs.length) {
+        const key = `${c.id}:${face}`;
+        half.onclick = ev => {
+          ev.stopPropagation();
+          // One action: play it. Several (VAR's heads/tails): ask which.
+          if (faceActs.length === 1) return submit(faceActs[0]);
+          picked = picked === key ? null : key;
+          renderHand();
+        };
+        if (picked === key) {
+          el.classList.add('pick');
+          const dual = document.createElement('div');
+          dual.className = 'dual';
+          faceActs.forEach(a => {
+            const b = document.createElement('button');
+            b.textContent = a.call ? (a.call === 'heads' ? 'وش' : 'ضهر') : AR(a.face);
+            b.onclick = ev => { ev.stopPropagation(); submit(a); };
+            dual.appendChild(b);
+          });
+          half.appendChild(dual);
+        }
+      }
+      el.appendChild(half);
+    });
+
     box.appendChild(el);
   });
 

@@ -5,7 +5,7 @@
 // publishes a per-seat view for every player. Guests never hold game state —
 // they read their own view and push actions.
 //
-//   /rooms/{code}/meta          host uid, mode, format, size, started
+//   /rooms/{code}/meta          host uid, mode, format, size, started, hostLeftAt
 //   /rooms/{code}/players/{uid} name, seat, joined
 //   /rooms/{code}/views/{uid}   that player's view — readable by them alone
 //   /rooms/{code}/actions/{id}  queue of submitted actions, drained by the host
@@ -14,12 +14,30 @@
 // can only push actions signed with their own uid. That keeps hands hidden from
 // the opponent. The host, however, holds the deck in memory — so the host can
 // see what is coming. Fine among friends; not a public-release design.
+//
+// LEAVING A ROOM
+// A tab can vanish without warning (phone locked, wifi dropped), so presence is
+// tracked server-side with onDisconnect:
+//
+//   * In the lobby, a disconnect frees the player's seat immediately, otherwise
+//     the room sits forever waiting for someone who already closed the tab.
+//   * Once the match starts that handler is CANCELLED, because join() restores a
+//     player to their original seat and killing the seat would break reconnect.
+//   * The host's disconnect stamps meta/hostLeftAt. If the host comes back the
+//     stamp is cleared and play continues. If it is still there after
+//     GRACE_MS, whichever player is still watching deletes the whole room.
+//
+// GRACE_MS below must match the 90000 in database.rules.json, which is what
+// actually authorises that delete. Change one and you must change the other.
 
 import { FIREBASE, SDK } from './firebase-config.js';
 import { Game, botAction } from './engine.js';
 
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';   // no O/0, no I/1/L
 const FORMATS = { bot: ['ONE_V_ONE', 1], '1v1': ['ONE_V_ONE', 2], '2v2': ['TWO_V_TWO', 4] };
+
+// How long a room outlives a vanished host. MUST match database.rules.json.
+const GRACE_MS = 90000;
 
 let fb = null;   // lazily loaded SDK bundle
 
@@ -61,6 +79,9 @@ export class Room {
     this.uid = null;
     this.seatOf = {};        // uid -> seat
     this.unsubs = [];
+    this.seatHold = null;    // onDisconnect handle that frees our lobby seat
+    this.reapTimer = null;   // pending host-grace deletion
+    this.left = false;       // leave() has run; ignore late callbacks
   }
 
   // ------------------------------------------------------------- local bot
@@ -117,10 +138,49 @@ export class Room {
     });
     this.seatOf[this.uid] = 0;
 
+    await this._markHostPresence();
+    await this._holdSeat();
+
     this._watchPlayers();
     this._watchActions();
     this._watchMyView();
     return this.code;
+  }
+
+  /**
+   * Host only. Stamp meta/hostLeftAt the moment this tab drops off, and clear it
+   * while we are alive. Guests read that stamp to decide whether the host is
+   * merely reconnecting or actually gone.
+   */
+  async _markHostPresence() {
+    const f = fb;
+    const stamp = f.ref(f.db, `rooms/${this.code}/meta/hostLeftAt`);
+    try {
+      await f.onDisconnect(stamp).set(f.serverTimestamp());
+      await f.set(stamp, null);
+    } catch (err) {
+      console.warn('presence unavailable', err.message);
+    }
+  }
+
+  /** Free our seat if the tab dies before the match starts. Cancelled at kickoff. */
+  async _holdSeat() {
+    const f = fb;
+    try {
+      this.seatHold = f.onDisconnect(f.ref(f.db, `rooms/${this.code}/players/${this.uid}`));
+      await this.seatHold.remove();
+    } catch (err) {
+      console.warn('seat hold unavailable', err.message);
+      this.seatHold = null;
+    }
+  }
+
+  /** Once play begins the seat must survive a disconnect so join() can restore it. */
+  async _releaseSeatHold() {
+    if (!this.seatHold) return;
+    const hold = this.seatHold;
+    this.seatHold = null;
+    try { await hold.cancel(); } catch { /* already gone */ }
   }
 
   async join(code, name) {
@@ -150,10 +210,65 @@ export class Room {
       });
     }
 
+    if (this.isHost) await this._markHostPresence();
+    if (!meta.started) await this._holdSeat();
+
     this._watchPlayers();
     this._watchMyView();
     if (this.isHost) this._watchActions();
+    else this._watchHost();
     return this.code;
+  }
+
+  /**
+   * Guests only. Watch meta for the host's disconnect stamp. A stamp that clears
+   * means the host reconnected; a stamp that survives GRACE_MS means the room is
+   * dead and the last player present deletes it.
+   */
+  _watchHost() {
+    const f = fb;
+    const r = f.ref(f.db, `rooms/${this.code}/meta`);
+    const off = f.onValue(r, snap => {
+      if (this.left) return;
+      const meta = snap.val();
+
+      if (!meta) {                       // room already reaped by someone else
+        this._cancelReap();
+        this.onError('الأوضة قفلت');
+        return;
+      }
+
+      if (meta.started) this._releaseSeatHold();
+
+      const leftAt = meta.hostLeftAt;
+      if (!leftAt) { this._cancelReap(); return; }   // host is present
+      if (this.reapTimer) return;                    // already counting down
+
+      const wait = Math.max(0, GRACE_MS - (Date.now() - leftAt));
+      this.onError(`الهوست وقع — مستنيينه ${Math.ceil(wait / 1000)} ثانية`);
+      this.reapTimer = setTimeout(() => this._reap(), wait + 1000);
+    });
+    this.unsubs.push(off);
+  }
+
+  _cancelReap() {
+    if (this.reapTimer) { clearTimeout(this.reapTimer); this.reapTimer = null; }
+  }
+
+  /** Delete a room whose host never came back. Authorised by the $code rule. */
+  async _reap() {
+    this.reapTimer = null;
+    if (this.left) return;
+    const f = fb;
+    try {
+      const snap = await f.get(f.ref(f.db, `rooms/${this.code}/meta/hostLeftAt`));
+      if (!snap.exists()) return;                    // host returned in the meantime
+      await f.remove(f.ref(f.db, `rooms/${this.code}`));
+    } catch (err) {
+      // Losing the race to another player is the expected outcome, not a fault.
+      console.warn('reap skipped', err.message);
+    }
+    this.onError('الأوضة قفلت — الهوست مرجعش');
   }
 
   _watchPlayers() {
@@ -183,6 +298,7 @@ export class Room {
       names: list.map(p => p.name),
     });
     f.update(f.ref(f.db, `rooms/${this.code}/meta`), { started: true });
+    this._releaseSeatHold();
     this._publish();
   }
 
@@ -268,9 +384,44 @@ export class Room {
     this._startMatch(this.players);
   }
 
-  leave() {
-    for (const off of this.unsubs) { try { off(); } catch {} }
+  /**
+   * Graceful exit. The host tears the whole room down, since nobody else can
+   * referee the match. A guest removes only their own presence — their seat and
+   * their view — and leaves the match standing for everyone else.
+   *
+   * Safe to call twice, and safe to call on a local bot match.
+   */
+  async leave() {
+    if (this.left) return;
+    this.left = true;
+
+    this._cancelReap();
+    for (const off of this.unsubs) { try { off(); } catch { /* already off */ } }
     this.unsubs = [];
+
+    const wasHost = this.isHost;
+    const code = this.code;
+    const uid = this.uid;
+    const local = this.local;
+
     this.game = null;
+    this.seatOf = {};
+
+    if (local || !code || !uid || !fb) return;   // bot match: nothing published
+
+    const f = fb;
+    await this._releaseSeatHold();
+    try { await f.onDisconnect(f.ref(f.db, `rooms/${code}/meta/hostLeftAt`)).cancel(); } catch { /* not host */ }
+
+    try {
+      if (wasHost) {
+        await f.remove(f.ref(f.db, `rooms/${code}`));
+      } else {
+        await f.remove(f.ref(f.db, `rooms/${code}/players/${uid}`));
+        await f.remove(f.ref(f.db, `rooms/${code}/views/${uid}`));
+      }
+    } catch (err) {
+      console.warn('cleanup failed', err.message);
+    }
   }
 }

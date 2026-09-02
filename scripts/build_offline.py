@@ -42,7 +42,10 @@ class Room {
   constructor({onView, onLobby, onError}) {
     Object.assign(this, {onView, onLobby, onError});
     this.game = null; this.seat = 0;
+    this.local = true;      // never networked, so leave() has nothing to clean up
+    this.isHost = true;
   }
+  async leave() { this.game = null; }
   async create(mode, fmt, name) {
     if (fmt !== 'bot') {
       this.onError('النسخة المحلية دي ضد البوت بس.\\n' +

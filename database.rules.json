@@ -5,6 +5,8 @@
 
     "rooms": {
       "$code": {
+        ".write": "auth != null && (data.child('meta').child('host').val() === auth.uid || (data.child('players').child(auth.uid).exists() && data.child('meta').child('hostLeftAt').exists() && data.child('meta').child('hostLeftAt').val() + 90000 < now))",
+
         "meta": {
           ".read": "auth != null",
           ".write": "auth != null && (!data.exists() || data.child('host').val() === auth.uid)"
@@ -20,7 +22,7 @@
         "views": {
           "$uid": {
             ".read": "auth != null && auth.uid === $uid",
-            ".write": "auth != null && root.child('rooms').child($code).child('meta').child('host').val() === auth.uid"
+            ".write": "auth != null && (root.child('rooms').child($code).child('meta').child('host').val() === auth.uid || ($uid === auth.uid && !newData.exists()))"
           }
         },
 

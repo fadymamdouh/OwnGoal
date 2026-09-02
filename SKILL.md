@@ -51,10 +51,18 @@ answer — the fastest way to see whether a card is a real threat or a bluff.
 - Foul reaches build-up stages only; it cannot answer a shot or a Penalty.
 - 2v2 scores two ways; the Goal card requires a partner's successful Assist.
 
-**Two questions are open (Q13, Q14), both found by the simulator** — whether a shot
-must be the last card of a Strategy chain, and whether Chain really answers every
-attack including Super Shot. Read `references/simulation-findings.md` for the
-numbers before discussing either. Everything else is closed and at v1.0.1.
+**Nothing is open.** The two holes the simulator found are now closed and recorded
+in `references/open-questions.md` as L26 and L27:
+- **L26 (was Q13) — shot ordering.** A shot must be the LAST card of a chain.
+  Playing it closes the chain; leftover drawn cards burn. This is what balances
+  Strategy mode to 51.4% vs 48.6%.
+- **L27 (was Q14) — Chain's scope.** Chain answers **build-up only** (Pass,
+  Dribble, Assist) and can never answer a scoring card. The general principle: a
+  scoring card is only ever answered by the defenses named against it.
+
+The ruleset is at **v1.2.0** and `references/rules.json` carries
+`status: COMPLETE` — 1v1 and 2v2 are both fully specified and both simulated,
+ready for a paper playtest, print layout and a digital build.
 `references/open-questions.md` now holds the *accepted risks* — decisions the
 designer made knowingly against the maths (Super Shot's ~7% answer rate, Strategy
 mode's dominated combo, no turn limit, Block being strictly worse than
@@ -114,7 +122,7 @@ Full detail is in rules.json; this is orientation only.
 | File | Read it when |
 |---|---|
 | `references/rules.json` | Always, before answering anything |
-| `references/open-questions.md` | The question might be unresolved; before any print or build work |
+| `references/open-questions.md` | Before any print or build work — holds the LOCKED rulings (L1–L27) and the accepted risks |
 | `references/rulebook-ar.md` | The user wants player-facing text, a rulebook, or card wording |
 | `references/card-flavour-ar.md` | Card flavour lines — needed for any print layout or card art work |
 | `references/card-flavour-ar-18plus.md` | The adults-only flavour expansion (stickers / separate deck, never merged into the base deck) |

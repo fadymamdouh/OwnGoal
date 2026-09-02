@@ -133,6 +133,7 @@ input::placeholder{color:#55525f}
       <div class="code" id="roomcode">—</div>
       <div class="hint">ابعت الكود لصاحبك عشان يدخل بيه</div></div>
     <div class="panel" id="lobbylist"></div>
+    <button class="go ghost" id="exitwait" style="margin-top:12px">اخرج من الأوضة</button>
   </div>
 
   <div id="game" class="hide">
@@ -147,6 +148,7 @@ input::placeholder{color:#55525f}
     <div class="feed" id="feed"></div>
     <div class="hand" id="hand"></div>
     <div class="over hide" id="over"></div>
+    <button class="go ghost" id="exitgame" style="margin-top:14px">اخرج من الماتش</button>
   </div>
 </div>
 <script type="module">
@@ -204,6 +206,25 @@ $('join').onclick = async () => {
   try { await room.join(c, $('name').value.trim() || 'لاعب'); }
   catch (e) { alert('مشكلة في الاتصال بـ Firebase: ' + e.message); }
 };
+
+/** Back to the front screen, after cleaning up whatever we published. */
+async function exitRoom() {
+  if (room) {
+    // The host is the referee, so its exit ends the match for everybody.
+    if (room.isHost && !room.local && room.game &&
+        !confirm('انت الهوست — لو خرجت الماتش يخلص لكل اللاعبين. متأكد؟')) return;
+    try { await room.leave(); } catch (e) { console.warn(e); }
+  }
+  room = null;
+  view = null;
+  localStorage.removeItem('og_code');
+  $('game').classList.add('hide');
+  $('waiting').classList.add('hide');
+  $('lobby').classList.remove('hide');
+}
+
+$('exitwait').onclick = exitRoom;
+$('exitgame').onclick = exitRoom;
 
 const PHASE_TEXT = {
   attack_draw: ['اسحب كام كارت؟', 'وتلعب نفس العدد بالظبط'],

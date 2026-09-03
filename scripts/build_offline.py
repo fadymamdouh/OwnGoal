@@ -36,6 +36,12 @@ body = html.split('<div class="wrap">')[1].split('<script type="module">')[0].rs
 ui = html.split('<script type="module">')[1].split('</script>')[0]
 # extract overlay markup (sits before .wrap), balancing div nesting
 _pre = html.split('<div class="wrap">')[0]
+def _extract_button(html, id_):
+    start = html.find(f'<button id="{id_}"')
+    if start < 0: return ''
+    end = html.index('</button>', start) + len('</button>')
+    return html[start:end] + '\n'
+
 def _extract_div(html, id_):
     start = html.find(f'<div id="{id_}"')
     if start < 0: return ''
@@ -44,7 +50,9 @@ def _extract_div(html, id_):
         depth += 1 if not m.group(1) else -1
         if depth == 0: return html[start:start+m.end()+1]
     return ''
-overlays_html = _extract_div(_pre,'coin-overlay') + '\n' + _extract_div(_pre,'goal-overlay')
+overlays_html = (_extract_button(_pre,'muteBtn')
+                + _extract_div(_pre,'coin-overlay')
+                + _extract_div(_pre,'goal-overlay'))
 ui = re.sub(r'^\s*import\s+.*?;\s*$', '', ui, flags=re.M | re.S)
 
 # A stand-in for net.js Room with the same surface, bot play only.

@@ -380,6 +380,15 @@ input::placeholder{color:#55525f}
   80% {transform:translate(-50%,-50%) scale(.96);opacity:1}
   100%{transform:translate(-50%,-50%) scale(1);opacity:0}}
 
+/* ---------- sound mute toggle ---------- */
+#muteBtn{position:fixed;bottom:14px;inset-inline-start:14px;z-index:996;
+  width:36px;height:36px;border-radius:50%;
+  background:#15121f;border:1px solid #2a2140;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;cursor:pointer;transition:opacity .2s;opacity:.7}
+#muteBtn:hover{opacity:1}
+#muteBtn.muted{opacity:.45}
+
 /* ---------- scrollbars — themed to match the dark UI ---------- */
 /* Firefox */
 .gplay,.gside,.feed{ scrollbar-width:thin; scrollbar-color:#2a2140 transparent }
@@ -474,6 +483,7 @@ html::-webkit-scrollbar-thumb{background:#2a2140;border-radius:3px}
 <!-- goal confetti layer (populated by JS) -->
 <div id="goal-overlay"></div>
 
+<button id="muteBtn" title="كتم الصوت">🔊</button>
 <div class="wrap">
 
   <div id="lobby">
@@ -655,6 +665,129 @@ const ENDS_POSSESSION = new Set([
 ]);
 
 /** Fold any unseen events from this view into the table and the commentary. */
+/* ------------------------------------------------------------------ sound
+   All sounds are synthesised with the Web Audio API — no files, no network,
+   works offline. Each function returns immediately; audio plays in the
+   background and cleans up after itself.
+
+   Sounds:
+     sndCoinSpin()      — metallic spin while the coin is in the air
+     sndCoinOverturned()— ascending fanfare: the decision was reversed
+     sndCoinConfirmed() — low thud: the decision stands
+     sndGoalUs()        — crowd roar + airhorn: we scored
+     sndGoalThem()      — low groan + whistle: they scored
+     sndNoEffect()      — short buzzer: card had no effect                     */
+
+let _actx = null;
+let _muted = false;
+
+function _ctx() {
+  if (!_actx) _actx = new (window.AudioContext || window.webkitAudioContext)();
+  if (_actx.state === 'suspended') _actx.resume();
+  return _actx;
+}
+
+function _play(fn) {
+  if (_muted) return;
+  try { fn(_ctx()); } catch(e) { /* audio blocked — ignore */ }
+}
+
+/* Crowd noise: band-passed white noise with volume envelope */
+function _crowd(ctx, start, dur, gain=0.18, freq=800) {
+  const buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = 0.8;
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0, start);
+  env.gain.linearRampToValueAtTime(gain, start + 0.08);
+  env.gain.setValueAtTime(gain, start + dur - 0.3);
+  env.gain.linearRampToValueAtTime(0, start + dur);
+  src.connect(bp); bp.connect(env); env.connect(ctx.destination);
+  src.start(start); src.stop(start + dur);
+}
+
+/* Tone: simple oscillator with envelope */
+function _tone(ctx, freq, start, dur, gain=0.15, type='sine', slide=0) {
+  const osc = ctx.createOscillator();
+  const env = ctx.createGain();
+  osc.type = type; osc.frequency.setValueAtTime(freq, start);
+  if (slide) osc.frequency.linearRampToValueAtTime(freq + slide, start + dur);
+  env.gain.setValueAtTime(0, start);
+  env.gain.linearRampToValueAtTime(gain, start + 0.01);
+  env.gain.setValueAtTime(gain, start + dur - 0.05);
+  env.gain.linearRampToValueAtTime(0, start + dur);
+  osc.connect(env); env.connect(ctx.destination);
+  osc.start(start); osc.stop(start + dur + 0.05);
+}
+
+/* Airhorn: detuned sawtooth blast */
+function _horn(ctx, start) {
+  [220, 223, 218].forEach((f, i) => {
+    _tone(ctx, f, start + i * 0.01, 1.1, 0.12, 'sawtooth');
+  });
+}
+
+function sndCoinSpin() {
+  _play(ctx => {
+    const t = ctx.currentTime;
+    // metallic rattling: rapid repeating clicks that slow down
+    for (let i = 0; i < 22; i++) {
+      const delay = Math.pow(i / 22, 1.6) * 1.7;
+      _tone(ctx, 1200 + Math.random() * 400, t + delay, 0.03, 0.06, 'square');
+    }
+  });
+}
+
+function sndCoinOverturned() {
+  _play(ctx => {
+    const t = ctx.currentTime;
+    // ascending three-note fanfare
+    [523, 659, 784].forEach((f, i) => _tone(ctx, f, t + i * 0.18, 0.35, 0.14, 'sine'));
+    _tone(ctx, 1047, t + 0.54, 0.6, 0.11, 'sine');
+  });
+}
+
+function sndCoinConfirmed() {
+  _play(ctx => {
+    const t = ctx.currentTime;
+    // low descending thud
+    _tone(ctx, 180, t, 0.15, 0.18, 'sine', -60);
+    _tone(ctx, 90,  t + 0.08, 0.25, 0.12, 'sine');
+  });
+}
+
+function sndGoalUs() {
+  _play(ctx => {
+    const t = ctx.currentTime;
+    _crowd(ctx, t, 2.8, 0.22, 700);          // crowd erupts
+    _horn(ctx, t + 0.05);                     // airhorn blast
+    _horn(ctx, t + 1.3);                      // second blast
+  });
+}
+
+function sndGoalThem() {
+  _play(ctx => {
+    const t = ctx.currentTime;
+    // low groan: descending noise
+    _crowd(ctx, t, 1.2, 0.10, 350);
+    // short whistle: high sine with fast decay
+    _tone(ctx, 1800, t + 0.1, 0.4, 0.09, 'sine', -200);
+  });
+}
+
+function sndNoEffect() {
+  _play(ctx => {
+    const t = ctx.currentTime;
+    // two-tone buzzer
+    _tone(ctx, 220, t,       0.12, 0.13, 'square');
+    _tone(ctx, 180, t + 0.14, 0.12, 0.13, 'square');
+  });
+}
+
 /* ---------------------------------------------------------------- animations
 
    showCoin(flip, call, label, sub)
@@ -706,9 +839,13 @@ function showCoin(flip, label, sub, ctx) {
 
   ov.classList.remove('reveal');
   ov.classList.add('on');
+  sndCoinSpin();
 
   // show the result label 1.4s in — give the spin time to land and settle
-  const revealTimer = setTimeout(() => ov.classList.add('reveal'), 1400);
+  const revealTimer = setTimeout(() => {
+    ov.classList.add('reveal');
+    if (flip === 'tails') sndCoinConfirmed(); else sndCoinOverturned();
+  }, 1400);
 
   // auto-dismiss 3.5s after the result is revealed (5s total from open)
   // but the player can tap to dismiss early once the result is showing
@@ -728,6 +865,7 @@ function showCoin(flip, label, sub, ctx) {
 
 /* showConceded — subtle dread instead of celebration */
 function showConceded() {
+  sndGoalThem();
   // dark red pulse that covers the board briefly
   const fl = document.createElement('div');
   fl.style.cssText = `position:fixed;inset:0;z-index:997;pointer-events:none;
@@ -743,6 +881,7 @@ function showConceded() {
 
 /* showNoEffect — brief "miss" flash on the card played */
 function showNoEffect() {
+  sndNoEffect();
   // a small banner that slides up from the bottom of the hand area
   const el = document.createElement('div');
   el.style.cssText = `position:fixed;bottom:220px;left:50%;transform:translateX(-50%);
@@ -776,6 +915,7 @@ const CONFETTI_COLORS = [
   '#D7263D','#2ECC71','#F1C40F','#3498DB','#E67E22','#9B59B6','#1ABC9C',
 ];
 function showGoal(scorerName) {
+  sndGoalUs();
   // white flash
   const fl = document.createElement('div');
   fl.className = 'goal-flash';
@@ -966,6 +1106,12 @@ async function exitRoom() {
 }
 
 $('keyonly').onchange = () => { if (view) renderFeed(); };
+const _muteBtn = $('muteBtn');
+_muteBtn.onclick = () => {
+  _muted = !_muted;
+  _muteBtn.textContent = _muted ? '🔇' : '🔊';
+  _muteBtn.classList.toggle('muted', _muted);
+};
 $('pickok').onclick = confirmPicks;
 $('pickclr').onclick = () => { picks = []; renderHand(); };
 $('exitwait').onclick = exitRoom;

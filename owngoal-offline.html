@@ -1719,6 +1719,43 @@ function showCoin(flip, call, label, sub) {
   setTimeout(() => { ov.classList.remove('on', 'reveal'); }, 2400);
 }
 
+/* showConceded — subtle dread instead of celebration */
+function showConceded() {
+  // dark red pulse that covers the board briefly
+  const fl = document.createElement('div');
+  fl.style.cssText = `position:fixed;inset:0;z-index:997;pointer-events:none;
+    background:rgba(180,10,30,.28);animation:flash .6s ease-out forwards`;
+  document.body.appendChild(fl);
+  const sh = document.createElement('div');
+  sh.className = 'goal-shout';
+  sh.style.cssText = 'color:#e74c3c;font-size:clamp(38px,8vw,72px)';
+  sh.textContent = 'هدف عليك';
+  document.body.appendChild(sh);
+  setTimeout(() => { fl.remove(); sh.remove(); }, 800);
+}
+
+/* showNoEffect — brief "miss" flash on the card played */
+function showNoEffect() {
+  // a small banner that slides up from the bottom of the hand area
+  const el = document.createElement('div');
+  el.style.cssText = `position:fixed;bottom:220px;left:50%;transform:translateX(-50%);
+    z-index:998;pointer-events:none;background:#2a1a1a;border:1px solid var(--attack);
+    border-radius:10px;padding:8px 18px;font-family:'Rakkas',cursive;font-size:16px;
+    color:var(--attack-glow);white-space:nowrap;
+    animation:noeff .7s ease forwards`;
+  el.textContent = 'مظبطتش ✗';
+  if (!document.getElementById('noeff-kf')) {
+    const st = document.createElement('style');
+    st.id = 'noeff-kf';
+    st.textContent = `@keyframes noeff{0%{opacity:0;transform:translateX(-50%) translateY(12px)}
+      20%{opacity:1;transform:translateX(-50%) translateY(0)}
+      70%{opacity:1}100%{opacity:0;transform:translateX(-50%) translateY(-8px)}}`;
+    document.head.appendChild(st);
+  }
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 750);
+}
+
 const GOAL_WORDS = ['جـــول','⚽','هدف','هدف هدف هدف'];
 const CONFETTI_COLORS = [
   '#D7263D','#2ECC71','#F1C40F','#3498DB','#E67E22','#9B59B6','#1ABC9C',
@@ -1761,15 +1798,23 @@ function runAnimations(evs) {
   for (const e of evs) {
     if (!e || typeof e.id !== 'number' || e.id <= lastAnimEvent) continue;
     lastAnimEvent = e.id;
-    if (e.kind === 'var') {
+    if (e.kind === 'defense_played' && !e.stopped) {
+      showNoEffect();
+    }
+  if (e.kind === 'var') {
       const seatName = (view?.seats[e.seat] || {}).name || '';
       const label = e.overturned ? 'اتلغى!' : 'اتأكد!';
       const sub = `المراجعة على ${(CARDS[e.reviewing] || {}).ar || e.reviewing || 'الحدث'}`;
       showCoin(e.flip, e.call, label, sub);
     }
     if (e.kind === 'goal') {
-      const seatName = (view?.seats[e.scorer] || {}).name || '';
-      showGoal(seatName);
+      const myTeam = view?.you % 2;
+      const scorerTeam = view ? view.seats[e.scorer]?.team : -1;
+      if (scorerTeam === myTeam) {
+        showGoal('us');   // our goal — celebrate
+      } else {
+        showConceded();   // their goal — react with dread
+      }
     }
   }
 }

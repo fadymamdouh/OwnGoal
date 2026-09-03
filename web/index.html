@@ -705,6 +705,7 @@ const PHASE_TEXT = {
   defense: ['رد على الهجمة', 'لازم تلعب كارت حتى لو مالكش رد'],
   react_own_goal: ['الشوطة عدّت! معاك Own Goal', 'تلعبه؟ النقطة تتحسب لك'],
   reshuffle_pick: ['اختار كارتين للتبديل', 'اللي تختاره هو اللي يمشي'],
+  react_var_offside: ['الحكم اتحكم تسلل — معاك VAR', 'هل تطلب المراجعة؟ وش يلغي، ضهر يأكد'],
   react_var: ['اتسجل هدف — معاك VAR', 'اختار وش أو ضهر: ضهر يلغي الهدف'],
 };
 
@@ -884,6 +885,10 @@ function commLine(e) {
           txt(`<b>${n(e.seat)}</b> و<b>${n(e.partner)}</b> بدّلوا ${e.n} كروت، ` +
               'كل واحد اختار من إيده.')
         : txt(`<b>${n(e.seat)}</b> بدّل ${e.n || 2} كروت من الديك.`);
+
+    case 'offside_overturned':
+      return ttl('التسلل اتلغى') +
+        txt(`<b>${n(e.seat)}</b> طعن بالـ VAR — التسلل مرفوض، الهجمة كملت.`);
 
     case 'reshuffle_opened':
       return txt(`<b>${n(e.seat)}</b> لعب ريشافل — ` +

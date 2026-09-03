@@ -1691,200 +1691,238 @@ const ENDS_POSSESSION = new Set([
 
 /** Fold any unseen events from this view into the table and the commentary. */
 /* ------------------------------------------------------------------ sound
-   Real MP3 files from web/sounds/. Each is loaded once and cached in _bufs.
-   Procedural Web Audio is kept as fallback for anything without a file.
 
-   API (same call sites as before):
-     sndCoinSpin()          sndCoinOverturned()    sndCoinConfirmed()
-     sndGoalUs(goalNo)      sndGoalThem()          sndNoEffect()
-     sndCard(face)          — pass, dribble, assist, penalty
-     _startIntro()          — lobby screen, stops when match starts
-     _startCrowd()          — background loop for the whole match
-     _stopCrowd()           — called on match over / exit             */
+   _bufs[name]   — decoded AudioBuffer cache (filled by _preloadSounds on page load)
+   _actx         — shared AudioContext (created on first use)
+   _muted        — global mute flag; also pauses crowd and intro
+   _crowdGain    — GainNode for the crowd loop (so we can duck it)
+   _crowdNode    — BufferSourceNode for the crowd loop
+   _introNode    — BufferSourceNode for the intro
+   _cardPending  — Promise that resolves when the current card sound finishes
+                   (used to block the hand until the clip ends)             */
 
 const SND_BASE = 'sounds/';
-const _bufs  = {};   // face/name -> AudioBuffer, populated on first use
-let   _actx  = null;
-let   _muted = false;
-let   _crowdNode  = null;   // currently playing crowd loop node
-let   _introNode  = null;   // currently playing intro node
-let   _goalScored = [0, 0]; // goals per team, for picking goal-N file
+const _bufs  = {};
+let   _actx       = null;
+let   _muted      = false;
+let   _crowdNode  = null;
+let   _crowdGain  = null;
+let   _introNode  = null;
+let   _cardNode   = null;
+let   _cardPending = Promise.resolve();   // resolves immediately at start
+const CROWD_FULL  = 0.18;                 // normal crowd volume
+const CROWD_DUCK  = 0.04;                 // volume while a card plays
+const CARD_CAP    = 6000;                 // max ms to wait before unblocking (safety)
 
 function _ctx() {
   if (!_actx) _actx = new (window.AudioContext || window.webkitAudioContext)();
+  // browsers may suspend the context; resume it on any interaction
   if (_actx.state === 'suspended') _actx.resume();
   return _actx;
 }
 
-/* Load an MP3 once, cache the decoded buffer, call cb(buffer). */
+/* Load and cache a buffer; cb(buf) called immediately if cached. */
 function _load(name, cb) {
   if (_bufs[name]) { cb(_bufs[name]); return; }
   fetch(SND_BASE + name + '.mp3')
     .then(r => r.arrayBuffer())
     .then(ab => _ctx().decodeAudioData(ab))
     .then(buf => { _bufs[name] = buf; cb(buf); })
-    .catch(() => {});          // silently ignore missing / blocked files
+    .catch(() => {});
 }
 
-/* Play a buffer once. Returns the source node so callers can stop it. */
-function _playBuf(buf, gain = 1.0, loop = false) {
-  if (_muted || !buf) return null;
+/* Play a buffer once. Returns {src, gain} so callers can stop or ramp it. */
+function _playBuf(buf, vol = 1.0, loop = false) {
+  if (!buf) return null;
   try {
     const ctx = _ctx();
     const src = ctx.createBufferSource();
     const g   = ctx.createGain();
-    src.buffer = buf;
-    src.loop   = loop;
-    g.gain.value = gain;
-    src.connect(g);
-    g.connect(ctx.destination);
+    src.buffer = buf; src.loop = loop;
+    g.gain.value = _muted ? 0 : vol;
+    src.connect(g); g.connect(ctx.destination);
     src.start();
-    return src;
+    return { src, gain: g };
   } catch(e) { return null; }
 }
 
-/* Fade a playing node out over `dur` seconds then stop it. */
-function _fadeOut(src, dur = 0.5) {
-  if (!src || !_actx) return;
-  try {
-    const g = src.context?.destination
-      ? null
-      : null; // we don't have a reference to the gain node here
-    // simplest: schedule stop after a tiny ramp
-    src.stop(_actx.currentTime + dur);
-  } catch(e) {}
+/* ── mute / unmute ───────────────────────────────────────────────────────── */
+function _applyMute() {
+  const v = _muted ? 0 : 1;
+  if (_crowdGain)  _crowdGain.gain.value  = _muted ? 0 : CROWD_FULL;
+  if (_introNode)  _introNode.gain.gain.value = _muted ? 0 : 0.75;
 }
 
-/* ---- public sound functions ---- */
+/* ── procedural sounds ───────────────────────────────────────────────────── */
+function _tone(ctx, freq, t, dur, vol, type = 'sine', slide = 0) {
+  const osc = ctx.createOscillator(); const env = ctx.createGain();
+  osc.type = type; osc.frequency.setValueAtTime(freq, t);
+  if (slide) osc.frequency.linearRampToValueAtTime(freq + slide, t + dur);
+  env.gain.setValueAtTime(0, t);
+  env.gain.linearRampToValueAtTime(vol, t + 0.01);
+  env.gain.setValueAtTime(vol, t + dur - 0.05);
+  env.gain.linearRampToValueAtTime(0, t + dur);
+  osc.connect(env); env.connect(ctx.destination);
+  osc.start(t); osc.stop(t + dur + 0.05);
+}
 
 function sndCoinSpin() {
-  // procedural — short metallic rattle, no file needed
   if (_muted) return;
   try {
     const ctx = _ctx(); const t = ctx.currentTime;
     for (let i = 0; i < 22; i++) {
-      const delay = Math.pow(i / 22, 1.6) * 1.7;
-      const osc = ctx.createOscillator(); const env = ctx.createGain();
-      osc.type = 'square';
-      osc.frequency.value = 1200 + Math.random() * 400;
-      env.gain.setValueAtTime(0.06, t + delay);
-      env.gain.linearRampToValueAtTime(0, t + delay + 0.03);
-      osc.connect(env); env.connect(ctx.destination);
-      osc.start(t + delay); osc.stop(t + delay + 0.04);
+      const d = Math.pow(i / 22, 1.6) * 1.7;
+      _tone(ctx, 1200 + Math.random() * 400, t + d, 0.03, 0.06, 'square');
     }
   } catch(e) {}
 }
-
-function sndCoinOverturned() {
-  _load('var-cancel', buf => _playBuf(buf, 0.9));
-}
-
 function sndCoinConfirmed() {
-  // procedural thud — no dedicated file
   if (_muted) return;
   try {
     const ctx = _ctx(); const t = ctx.currentTime;
-    const osc = ctx.createOscillator(); const env = ctx.createGain();
-    osc.type = 'sine'; osc.frequency.setValueAtTime(180, t);
-    osc.frequency.linearRampToValueAtTime(60, t + 0.2);
-    env.gain.setValueAtTime(0.18, t);
-    env.gain.linearRampToValueAtTime(0, t + 0.35);
-    osc.connect(env); env.connect(ctx.destination);
-    osc.start(t); osc.stop(t + 0.4);
+    _tone(ctx, 180, t, 0.2, 0.18, 'sine', -60);
+    _tone(ctx, 90,  t + 0.1, 0.3, 0.12, 'sine');
   } catch(e) {}
 }
-
-function sndGoalUs(team) {
-  // pick file based on how many goals this team has scored
-  const n = Math.min((_goalScored[team] || 0), 5);
-  const file = 'goal-' + (n || 1);
-  _load(file, buf => _playBuf(buf, 1.0));
-}
-
 function sndGoalThem() {
-  // procedural groan — no dedicated "conceded" file
   if (_muted) return;
   try {
     const ctx = _ctx(); const t = ctx.currentTime;
-    const osc = ctx.createOscillator(); const env = ctx.createGain();
-    osc.type = 'sine'; osc.frequency.setValueAtTime(220, t);
-    osc.frequency.linearRampToValueAtTime(100, t + 0.6);
-    env.gain.setValueAtTime(0.12, t);
-    env.gain.linearRampToValueAtTime(0, t + 0.8);
-    osc.connect(env); env.connect(ctx.destination);
-    osc.start(t); osc.stop(t + 0.9);
+    _tone(ctx, 220, t, 0.6, 0.12, 'sine', -120);
+    _tone(ctx, 1800, t + 0.1, 0.4, 0.09, 'sine', -200);
   } catch(e) {}
 }
-
 function sndNoEffect() {
   if (_muted) return;
   try {
     const ctx = _ctx(); const t = ctx.currentTime;
-    [220, 180].forEach((f, i) => {
-      const osc = ctx.createOscillator(); const env = ctx.createGain();
-      osc.type = 'square'; osc.frequency.value = f;
-      const s2 = t + i * 0.14;
-      env.gain.setValueAtTime(0.13, s2);
-      env.gain.linearRampToValueAtTime(0, s2 + 0.12);
-      osc.connect(env); env.connect(ctx.destination);
-      osc.start(s2); osc.stop(s2 + 0.13);
-    });
+    [220, 180].forEach((f, i) => _tone(ctx, f, t + i * 0.14, 0.12, 0.13, 'square'));
   } catch(e) {}
 }
 
-/* Card sounds: pass, dribble, assist, penalty — play full clip */
-const CARD_SOUNDS = {
-  PASS: 'pass', DRIBBLE: 'dribble', ASSIST: 'assist', PENALTY: 'penalty',
-};
-let _cardNode = null;   // stop previous card sound before starting a new one
-function sndCard(face) {
-  const file = CARD_SOUNDS[face];
-  if (!file) return;
-  if (_cardNode) { try { _cardNode.stop(); } catch(e) {} }
-  _load(file, buf => { _cardNode = _playBuf(buf, 0.85); });
+function sndCoinOverturned() { _load('var-cancel', buf => _playBuf(buf, 0.9)); }
+
+/* ── goal sounds (tracks goals per team) ────────────────────────────────── */
+let _goalScored = [0, 0];
+function sndGoalUs(team) {
+  const n = Math.min((_goalScored[team] || 0), 5);
+  _load('goal-' + (n || 1), buf => _playBuf(buf, 1.0));
 }
 
-/* Crowd chant: looping background during the whole match */
+/* ── crowd loop with ducking ─────────────────────────────────────────────── */
 function _startCrowd() {
   if (_crowdNode) return;
   _load('crowd-chant', buf => {
     if (!buf) return;
-    if (_muted) return;
     try {
       const ctx = _ctx();
       const src = ctx.createBufferSource();
       const g   = ctx.createGain();
       src.buffer = buf; src.loop = true;
-      g.gain.value = 0.18;           // quiet background
+      g.gain.value = _muted ? 0 : CROWD_FULL;
       src.connect(g); g.connect(ctx.destination);
       src.start();
-      _crowdNode = src;
+      _crowdNode = src; _crowdGain = g;
     } catch(e) {}
   });
 }
-
 function _stopCrowd() {
-  if (!_crowdNode) return;
-  try { _crowdNode.stop(); } catch(e) {}
-  _crowdNode = null;
+  if (_crowdNode) { try { _crowdNode.stop(); } catch(e) {} }
+  _crowdNode = null; _crowdGain = null;
+}
+function _duckCrowd(low) {
+  if (!_crowdGain || !_actx) return;
+  const t = _actx.currentTime;
+  _crowdGain.gain.cancelScheduledValues(t);
+  _crowdGain.gain.setValueAtTime(_crowdGain.gain.value, t);
+  _crowdGain.gain.linearRampToValueAtTime(_muted ? 0 : (low ? CROWD_DUCK : CROWD_FULL), t + 0.3);
 }
 
-/* Intro: plays on the lobby/waiting screen, stops when match begins */
+/* ── intro (loops) ──────────────────────────────────────────────────────── */
 function _startIntro() {
   if (_introNode) return;
   _load('intro', buf => {
-    if (!buf || _muted) return;
+    if (!buf) return;
     try {
       const ctx = _ctx();
-      _introNode = _playBuf(buf, 0.75);
+      const src = ctx.createBufferSource();
+      const g   = ctx.createGain();
+      src.buffer = buf; src.loop = true;    // repeat until stopped
+      g.gain.value = _muted ? 0 : 0.75;
+      src.connect(g); g.connect(ctx.destination);
+      src.start();
+      _introNode = { src, gain: g };
     } catch(e) {}
   });
 }
-
 function _stopIntro() {
-  if (!_introNode) return;
-  try { _introNode.stop(); } catch(e) {}
+  if (_introNode) { try { _introNode.src.stop(); } catch(e) {} }
   _introNode = null;
+}
+
+/* ── card sounds: block input until clip ends (or CARD_CAP ms) ──────────── */
+const CARD_SOUNDS = { PASS:'pass', DRIBBLE:'dribble', ASSIST:'assist', PENALTY:'penalty' };
+let _cardUnblock = null;   // function to call to release the block early
+
+function sndCard(face) {
+  const file = CARD_SOUNDS[face];
+  if (!file) return;
+  // stop any card clip still playing
+  if (_cardNode) { try { _cardNode.stop(); } catch(e) {} _cardNode = null; }
+  if (_cardUnblock) { _cardUnblock(); _cardUnblock = null; }
+
+  _load(file, buf => {
+    if (!buf) return;
+    _duckCrowd(true);   // duck crowd while card plays
+    const node = _playBuf(buf, 0.85);
+    if (!node) { _duckCrowd(false); return; }
+    _cardNode = node.src;
+
+    // _cardPending blocks renderHand; resolves when clip ends or cap expires
+    _cardPending = new Promise(resolve => {
+      const dur = Math.min(buf.duration * 1000, CARD_CAP);
+      const timer = setTimeout(() => { resolve(); _duckCrowd(false); }, dur);
+      _cardUnblock = () => { clearTimeout(timer); resolve(); _duckCrowd(false); };
+      node.src.onended = () => { clearTimeout(timer); resolve(); _duckCrowd(false); };
+    });
+  });
+}
+
+/* ── preload everything on page load ──────────────────────────────────────
+   Browsers block AudioContext creation until a user gesture, but we can
+   start fetching and storing raw ArrayBuffers immediately. We decode them
+   the moment the AudioContext becomes available (first gesture).           */
+const _rawBufs = {};   // name -> ArrayBuffer, fetched before user gesture
+function _preloadFetch() {
+  const names = ['pass','dribble','assist','penalty',
+                 'goal-1','goal-2','goal-3','goal-4','goal-5',
+                 'var-cancel','crowd-chant','intro'];
+  names.forEach(n => {
+    fetch(SND_BASE + n + '.mp3')
+      .then(r => r.arrayBuffer())
+      .then(ab => { _rawBufs[n] = ab; })
+      .catch(() => {});
+  });
+}
+
+/* Decode all pre-fetched raw buffers now that we have an AudioContext. */
+function _decodePreloaded() {
+  const ctx = _ctx();
+  Object.entries(_rawBufs).forEach(([name, ab]) => {
+    if (_bufs[name]) return;
+    ctx.decodeAudioData(ab.slice(0))
+       .then(buf => { _bufs[name] = buf; })
+       .catch(() => {});
+  });
+}
+
+/* Called once on ANY user gesture to unlock audio and start the intro. */
+let _audioUnlocked = false;
+function _unlockAudio() {
+  if (_audioUnlocked) return;
+  _audioUnlocked = true;
+  _decodePreloaded();
+  _startIntro();
 }
 
 /* ---------------------------------------------------------------- animations
@@ -2216,15 +2254,17 @@ async function exitRoom() {
 
 $('keyonly').onchange = () => { if (view) renderFeed(); };
 // start intro on the lobby screen on first user interaction
-document.addEventListener('click', function _firstClick() {
-  _startIntro();
-  document.removeEventListener('click', _firstClick);
-}, { once: true });
+// Start fetching sound files immediately — no AudioContext needed yet
+_preloadFetch();
+// Unlock audio + start intro on ANY gesture (click, keydown, touchstart)
+['click','keydown','touchstart'].forEach(ev =>
+  document.addEventListener(ev, _unlockAudio, { once: true, passive: true }));
 const _muteBtn = $('muteBtn');
 _muteBtn.onclick = () => {
   _muted = !_muted;
   _muteBtn.textContent = _muted ? '🔇' : '🔊';
   _muteBtn.classList.toggle('muted', _muted);
+  _applyMute();   // apply to currently-playing crowd and intro
 };
 $('pickok').onclick = confirmPicks;
 $('pickclr').onclick = () => { picks = []; renderHand(); };
@@ -2264,7 +2304,9 @@ function render() {
   renderFan();
   renderTable();
   renderDeck();
-  renderHand();
+  // Wait for any card sound to finish before revealing new playable cards.
+  // This makes the game feel like it pauses briefly while the card "speaks".
+  _cardPending.then(() => renderHand());
 
   if (v.over) {
     const meTeam = v.you % 2;

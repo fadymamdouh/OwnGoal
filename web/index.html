@@ -320,7 +320,7 @@ input::placeholder{color:#55525f}
 .coin{
   width:110px;height:110px;border-radius:50%;position:relative;
   transform-style:preserve-3d;
-  animation:coin-spin 1.2s cubic-bezier(.4,0,.2,1) forwards}
+  animation:coin-spin 1.8s cubic-bezier(.25,0,.15,1) forwards}
 @keyframes coin-spin{
   0%  {transform:rotateY(0)}
   80% {transform:rotateY(1440deg)}
@@ -344,7 +344,10 @@ input::placeholder{color:#55525f}
   font-size:13px;font-weight:700;color:var(--muted);
   opacity:0;transition:opacity .3s 1.05s}
 #coin-overlay.reveal .coin-label,
-#coin-overlay.reveal .coin-sub{opacity:1}
+#coin-overlay.reveal .coin-sub,
+#coin-overlay.reveal .coin-tap{opacity:1}
+.coin-tap{font-size:11px;font-weight:700;color:var(--muted);margin-top:14px;
+  letter-spacing:.08em;opacity:0;transition:opacity .4s 1.6s}
 
 /* ---------- goal celebration ---------- */
 #goal-overlay{
@@ -455,6 +458,7 @@ html::-webkit-scrollbar-thumb{background:#2a2140;border-radius:3px}
   </div>
   <div class="coin-label" id="coin-label">—</div>
   <div class="coin-sub"  id="coin-sub">—</div>
+  <div class="coin-tap" id="coin-tap">اضغط للمتابعة</div>
 </div>
 <!-- goal confetti layer (populated by JS) -->
 <div id="goal-overlay"></div>
@@ -679,10 +683,24 @@ function showCoin(flip, call, label, sub) {
 
   ov.classList.remove('reveal');
   ov.classList.add('on');
-  // show the result label 0.9s in (matches the CSS transition delay)
-  setTimeout(() => ov.classList.add('reveal'), 900);
-  // dismiss after 2.4s total
-  setTimeout(() => { ov.classList.remove('on', 'reveal'); }, 2400);
+
+  // show the result label 1.4s in — give the spin time to land and settle
+  const revealTimer = setTimeout(() => ov.classList.add('reveal'), 1400);
+
+  // auto-dismiss 3.5s after the result is revealed (5s total from open)
+  // but the player can tap to dismiss early once the result is showing
+  let dismissed = false;
+  function dismiss() {
+    if (dismissed) return;
+    dismissed = true;
+    clearTimeout(autoTimer);
+    ov.classList.remove('on', 'reveal');
+    ov.onclick = null;
+  }
+  const autoTimer = setTimeout(dismiss, 1400 + 3500);
+
+  // tap anywhere on the overlay to dismiss — but only after the result shows
+  ov.onclick = () => { if (ov.classList.contains('reveal')) dismiss(); };
 }
 
 /* showConceded — subtle dread instead of celebration */

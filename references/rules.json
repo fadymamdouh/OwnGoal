@@ -338,7 +338,8 @@
       "defense": "VAR",
       "stops": [
         "GOAL",
-        "PENALTY"
+        "PENALTY",
+        "OFFSIDE"
       ],
       "note": "Resolves as a coin-flip review, not a normal duel. Reviews a Goal card, a Penalty, or an Offside call against you. See resolution.var."
     },
@@ -397,7 +398,8 @@
       "limit": "One VAR per event, ever. No appealing an appeal.",
       "reviewable": [
         "GOAL",
-        "PENALTY"
+        "PENALTY",
+        "OFFSIDE"
       ]
     },
     "chain_card": "Playable at any time, but ONLY by a player on the side that does NOT hold possession, and ONLY against a build-up card (Pass, Dribble, Assist). It cancels the running chain and takes possession immediately. It can never touch a scoring card.",

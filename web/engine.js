@@ -278,6 +278,19 @@ export class Game {
       return acts;
     }
 
+    /* L34: after OFFSIDE stops an attack, the attacker can contest with VAR.
+       The attacker calls heads/tails — they are the side contesting the call. */
+    if (this.phase === 'react_var_offside' && seatIndex === this.pending.seat) {
+      for (const c of me.hand) {
+        if (c.faces.includes('VAR')) {
+          acts.push({ type: 'play', card_id: c.id, face: 'VAR', call: 'heads', counters: true });
+          acts.push({ type: 'play', card_id: c.id, face: 'VAR', call: 'tails', counters: true });
+        }
+      }
+      acts.push({ type: 'pass' });   // always offered — attacker can waive
+      return acts;
+    }
+
     if (this.phase === 'react_own_goal' && seatIndex === this.pending.seat) {
       for (const c of me.hand) {
         if (c.faces.includes('OWN_GOAL')) {
@@ -319,7 +332,7 @@ export class Game {
     const handler = {
       attack_draw: 'doDraw', defense_draw: 'doDraw', attack: 'doAttack',
       defense: 'doDefense', react_own_goal: 'doOwnGoal', react_var: 'doVar',
-      reshuffle_pick: 'doReshufflePick',
+      react_var_offside: 'doVarOffside', reshuffle_pick: 'doReshufflePick',
     }[this.phase];
     this[handler](seatIndex, action);
     return this.log.slice(before);
@@ -452,6 +465,18 @@ export class Game {
     const outcome = POSSESSION[face] || 'neutral';
     if (face === 'FOUL') this.seats[this.possession].fouled = true;
 
+    /* L34: after OFFSIDE stops an attack, the attacker may contest with VAR. */
+    if (face === 'OFFSIDE') {
+      const atk = this.possession;
+      const attacker = this._nextOfTeam(atk, this.team(atk));
+      if (!this.noVarReview && this.seats[attacker].has('VAR')) {
+        this.noVarReview = false;
+        this.pending = { seat: attacker, reason: 'offside', defSeat };
+        this.phase = 'react_var_offside';
+        return;
+      }
+    }
+
     if (outcome === 'defender') {
       this.possession = this._partner(defSeat);
       // Strategy: whatever the defender has left becomes a counter-attack
@@ -486,6 +511,45 @@ export class Game {
       return;
     }
     this._score(this.possession, this.chain[this.chain.length - 1]);
+  }
+
+  doVarOffside(seatIndex, action) {
+    const p = this.pending;
+    const { defSeat } = p;
+    this.pending = null;
+    if (action.type === 'pass') {
+      // attacker waives VAR — set guard so _resolveStopped won't re-open
+      this.noVarReview = true;
+      this._resolveStopped('OFFSIDE', defSeat);
+      return;
+    }
+    // VAR coin flip
+    const seat = this.seats[seatIndex];
+    const card = seat.find(action.card_id);
+    this._burn(seat, card);
+    const flip = this.rng.pick(['heads', 'tails']);
+    const overturned = flip === 'tails';   // tails = offside confirmed (stands)
+    this._emit('var', {
+      seat: seatIndex, call: action.call, flip, overturned,
+      confirmed: flip === action.call, reviewing: 'OFFSIDE',
+    });
+    if (overturned) {
+      // offside confirmed — resolve it normally
+      this._resolveStopped('OFFSIDE', defSeat);
+    } else {
+      // offside overturned — attack continues from where it was
+      this.noVarReview = true;
+      this._emit('offside_overturned', { seat: seatIndex });
+      this._refillAll();
+      if (this._strategy()) {
+        this.phase = 'attack_draw';
+      } else {
+        this.phase = 'attack';
+        const c = this._draw();
+        if (c) this.seats[this.possession].hand.push(c);
+        this.owed = 1;
+      }
+    }
   }
 
   doOwnGoal(seatIndex, action) {
@@ -701,6 +765,12 @@ export function botAction(game, seatIndex, policy = 'SHOOTER') {
   /* Picking cards to swap away. A human would dump their least useful cards, so
      the bot does the same: anything with no attack face and no counter value
      goes first, keeping shots and split cards. */
+  if (game.phase === 'react_var_offside') {
+    // attacker contests an offside call — take the VAR if held, otherwise pass
+    const va = acts.find(a => a.face === 'VAR' && a.call === 'heads');
+    return va || { type: 'pass' };
+  }
+
   if (game.phase === 'reshuffle_pick') {
     const worth = id => {
       const c = game.seats[seatIndex].hand.find(x => x.id === id);

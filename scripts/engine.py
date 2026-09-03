@@ -301,6 +301,16 @@ class Game:
                     acts.append({"type": "pick", "card_id": c.id})
             return acts
 
+        # L34: after OFFSIDE stops an attack, the attacker can contest with VAR
+        if self.phase == "react_var_offside" and seat_i == self.pending["seat"]:
+            for c in me.hand:
+                if "VAR" in c.faces:
+                    for call in ("heads", "tails"):
+                        acts.append({"type": "play", "card_id": c.id,
+                                     "face": "VAR", "call": call, "counters": True})
+            acts.append({"type": "pass"})   # always offered — attacker can waive
+            return acts
+
         if self.phase == "react_own_goal" and seat_i == self.pending["seat"]:
             for c in me.hand:
                 if "OWN_GOAL" in c.faces:
@@ -338,6 +348,7 @@ class Game:
             "defense": self._do_defense,
             "react_own_goal": self._do_own_goal,
             "react_var": self._do_var,
+            "react_var_offside": self._do_var_offside,
             "reshuffle_pick": self._do_reshuffle_pick,
         }[self.phase]
         handler(seat_i, action)
@@ -471,6 +482,17 @@ class Game:
         outcome = POSSESSION.get(face, "neutral")
         if face == "FOUL":
             self.seats[self.possession].fouled = True
+
+        # L34: after OFFSIDE stops an attack, the attacker may contest with VAR
+        if face == "OFFSIDE":
+            atk = self.possession
+            attacker = self._next_of_team(atk, self.team(atk))
+            if not self.no_var_review and any("VAR" in c.faces for c in self.seats[attacker].hand):
+                self.no_var_review = False
+                self.pending = {"seat": attacker, "reason": "offside", "def_seat": def_seat}
+                self.phase = "react_var_offside"
+                return
+
         if outcome == "defender":
             self.possession = self._partner(def_seat)
             # Strategy: whatever the defender has left becomes a counter-attack
@@ -503,6 +525,38 @@ class Game:
             self.phase = "react_own_goal"
             return
         self._score(self.possession, self.chain[-1])
+
+    def _do_var_offside(self, seat_i, action):
+        p = self.pending
+        def_seat = p["def_seat"]
+        self.pending = None
+        if action.get("type") == "pass":
+            self.no_var_review = True
+            self._resolve_stopped("OFFSIDE", def_seat)
+            return
+        seat = self.seats[seat_i]
+        card = seat.find(action["card_id"])
+        self._burn(seat, card)
+        flip = self.rng.choice(["heads", "tails"])
+        overturned = flip == "tails"
+        self._emit("var", seat=seat_i, call=action.get("call"), flip=flip,
+                   overturned=overturned, confirmed=flip == action.get("call"),
+                   reviewing="OFFSIDE")
+        if overturned:
+            self.no_var_review = True
+            self._resolve_stopped("OFFSIDE", def_seat)
+        else:
+            self.no_var_review = True
+            self._emit("offside_overturned", seat=seat_i)
+            self._refill_all()
+            if self._strategy():
+                self.phase = "attack_draw"
+            else:
+                self.phase = "attack"
+                c = self._draw()
+                if c:
+                    self.seats[self.possession].hand.append(c)
+                self.owed = 1
 
     def _do_own_goal(self, seat_i, action):
         if action["type"] == "pass":
@@ -708,6 +762,10 @@ def bot_action(game: Game, seat_i, policy="SHOOTER"):
 
     # Picking cards to swap away. A human dumps their least useful cards, so the
     # bot does the same: keep shots and split cards, spend spares first.
+    if game.phase == "react_var_offside":
+        va = next((a for a in acts if a.get("face") == "VAR" and a.get("call") == "heads"), None)
+        return va or {"type": "pass"}
+
     if game.phase == "reshuffle_pick":
         hand = {c.id: c for c in game.seats[seat_i].hand}
 

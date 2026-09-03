@@ -331,12 +331,17 @@ input::placeholder{color:#55525f}
   backface-visibility:hidden;font-family:'Oswald',sans-serif;font-size:22px;
   font-weight:700;letter-spacing:.08em}
 .coin .heads{
-  background:radial-gradient(circle at 35% 35%,#f1c40f,#b8860b);
-  color:#3d2800;box-shadow:0 0 0 4px #b8860b,0 6px 24px #0008}
+  background:radial-gradient(circle at 35% 35%,#27ae60,#1a7a40);
+  box-shadow:0 0 0 4px #1a7a40,0 6px 24px #0008;
+  flex-direction:column;gap:4px}
 .coin .tails{
-  background:radial-gradient(circle at 35% 35%,#8a9bae,#2c4a6a);
-  color:#e8f0f8;box-shadow:0 0 0 4px #2c4a6a,0 6px 24px #0008;
-  transform:rotateY(180deg)}
+  background:radial-gradient(circle at 35% 35%,#c0392b,#7b1a14);
+  box-shadow:0 0 0 4px #7b1a14,0 6px 24px #0008;
+  transform:rotateY(180deg);flex-direction:column;gap:4px}
+.coin .face-icon{font-size:38px;line-height:1}
+.coin .face-txt{font-family:'Rakkas',cursive;font-size:14px;font-weight:700;text-align:center}
+.coin .heads .face-txt{color:#c8ffd4}
+.coin .tails .face-txt{color:#ffc8c8}
 .coin-label{
   font-family:'Rakkas',cursive;font-size:28px;color:var(--ink);
   margin-bottom:6px;opacity:0;transition:opacity .3s .9s}
@@ -451,8 +456,14 @@ html::-webkit-scrollbar-thumb{background:#2a2140;border-radius:3px}
 <div id="coin-overlay">
   <div class="coin-wrap">
     <div class="coin" id="coin-el">
-      <div class="coin-face heads">وش</div>
-      <div class="coin-face tails">ضهر</div>
+      <div class="coin-face heads">
+        <span class="face-icon" id="coin-heads-icon">✓</span>
+        <span class="face-txt"  id="coin-heads-txt">اتلغى</span>
+      </div>
+      <div class="coin-face tails">
+        <span class="face-icon" id="coin-tails-icon">✗</span>
+        <span class="face-txt"  id="coin-tails-txt">اتأكد</span>
+      </div>
     </div>
   </div>
   <div class="coin-label" id="coin-label">—</div>
@@ -993,8 +1004,7 @@ class Game {
       for (const c of me.hand) {
         // VAR answers a Goal or a Penalty as a review — the caller picks a side
         if (c.faces.includes('VAR') && (COUNTERS.VAR || new Set()).has(target)) {
-          acts.push({ type: 'play', card_id: c.id, face: 'VAR', call: 'heads', counters: true });
-          acts.push({ type: 'play', card_id: c.id, face: 'VAR', call: 'tails', counters: true });
+          acts.push({ type: 'play', card_id: c.id, face: 'VAR', counters: true });
           continue;
         }
         let f = faceOfClass(c, 'defense');
@@ -1027,8 +1037,7 @@ class Game {
     if (this.phase === 'react_var_offside' && seatIndex === this.pending.seat) {
       for (const c of me.hand) {
         if (c.faces.includes('VAR')) {
-          acts.push({ type: 'play', card_id: c.id, face: 'VAR', call: 'heads', counters: true });
-          acts.push({ type: 'play', card_id: c.id, face: 'VAR', call: 'tails', counters: true });
+          acts.push({ type: 'play', card_id: c.id, face: 'VAR', counters: true });
         }
       }
       acts.push({ type: 'pass' });   // always offered — attacker can waive
@@ -1171,10 +1180,7 @@ class Game {
       this.defOwed = 0;
       const flip = this.rng.pick(['heads', 'tails']);
       const overturned = flip === 'tails';
-      this._emit('var', {
-        seat: seatIndex, call: action.call, flip, overturned,
-        confirmed: flip === action.call, reviewing: target,
-      });
+      this._emit('var', { seat: seatIndex, flip, overturned, reviewing: target });
       this._emit('defense_played', { seat: seatIndex, face, stopped: overturned });
       if (overturned) { this._resolveStopped('VAR', seatIndex); return; }
       this.noVarReview = true;     // this event has had its one review
@@ -1274,8 +1280,7 @@ class Game {
     const flip = this.rng.pick(['heads', 'tails']);
     const overturned = flip === 'tails';   // tails = offside confirmed (stands)
     this._emit('var', {
-      seat: seatIndex, call: action.call, flip, overturned,
-      confirmed: flip === action.call, reviewing: 'OFFSIDE',
+      seat: seatIndex, flip, overturned, reviewing: 'OFFSIDE',
     });
     if (overturned) {
       // offside confirmed — resolve it normally
@@ -1339,8 +1344,7 @@ class Game {
     // heads confirms the decision, tails overturns it
     const overturned = flip === 'tails';
     this._emit('var', {
-      seat: seatIndex, call: action.call, flip, overturned,
-      confirmed: flip === action.call,
+      seat: seatIndex, flip, overturned,
     });
     if (overturned) {
       this.score[this.team(p.scorer)] -= 1;
@@ -1502,7 +1506,7 @@ function botAction(game, seatIndex, policy = 'SHOOTER') {
     return acts.find(a => a.face === 'OWN_GOAL') || { type: 'pass' };
   }
   if (game.phase === 'react_var') {
-    return acts.find(a => a.face === 'VAR' && a.call === 'heads') || { type: 'pass' };
+    return acts.find(a => a.face === 'VAR') || { type: 'pass' };
   }
 
   /* Picking cards to swap away. A human would dump their least useful cards, so
@@ -1510,7 +1514,7 @@ function botAction(game, seatIndex, policy = 'SHOOTER') {
      goes first, keeping shots and split cards. */
   if (game.phase === 'react_var_offside') {
     // attacker contests an offside call — take the VAR if held, otherwise pass
-    const va = acts.find(a => a.face === 'VAR' && a.call === 'heads');
+    const va = acts.find(a => a.face === 'VAR');
     return va || { type: 'pass' };
   }
 
@@ -1690,17 +1694,29 @@ const ENDS_POSSESSION = new Set([
      Fires confetti and a shout word. Confetti launches upward and vanishes;
      flash whitens the screen for one frame; shout scales in then fades.       */
 
-function showCoin(flip, call, label, sub) {
+/* context: { overturnLabel, standLabel, subject }
+     overturnLabel — what "heads" (overturned) means for this event, e.g. 'الهدف اتلغى'
+     standLabel    — what "tails" (confirmed) means, e.g. 'الهدف صح'
+     subject       — short name for the event, shown in the sub-line                   */
+function showCoin(flip, label, sub, ctx) {
   const ov = $('coin-overlay');
   const coin = $('coin-el');
   const lb = $('coin-label');
   const sb = $('coin-sub');
 
+  // set face labels from context
+  if (ctx) {
+    $('coin-heads-icon').textContent = '✓';
+    $('coin-heads-txt').textContent  = ctx.overturnLabel;
+    $('coin-tails-icon').textContent = '✗';
+    $('coin-tails-txt').textContent  = ctx.standLabel;
+  }
+
   // reset — detach animation so it can restart
   coin.style.animation = 'none';
   coin.offsetHeight;                        // force reflow
   lb.textContent = label;
-  sb.textContent = `الرمية: ${flip === 'heads' ? 'وش' : 'ضهر'} · طلبت: ${call === 'heads' ? 'وش' : 'ضهر'}`;
+  sb.textContent = sub || '';
 
   // orient coin so the correct face shows at the end
   // rotateY(1440deg) = 4 full turns → lands on heads (front face).
@@ -1774,6 +1790,14 @@ function showNoEffect() {
   setTimeout(() => el.remove(), 750);
 }
 
+/* context labels for each reviewable event — what each coin face means */
+const VAR_CONTEXT = {
+  GOAL:    { overturnLabel: 'اتلغى', standLabel: 'هدف صح',   subject: 'مراجعة الهدف',    subjectFull: 'VAR — مراجعة الهدف' },
+  PENALTY: { overturnLabel: 'اتلغى', standLabel: 'بنالتي صح', subject: 'مراجعة البنالتي', subjectFull: 'VAR — مراجعة البنالتي' },
+  OFFSIDE: { overturnLabel: 'اتلغى', standLabel: 'تسلل صح',   subject: 'مراجعة التسلل',   subjectFull: 'VAR — مراجعة التسلل' },
+  '':      { overturnLabel: 'اتلغى', standLabel: 'اتأكد',     subject: 'مراجعة VAR',      subjectFull: 'VAR' },
+};
+
 const GOAL_WORDS = ['جـــول','⚽','هدف','هدف هدف هدف'];
 const CONFETTI_COLORS = [
   '#D7263D','#2ECC71','#F1C40F','#3498DB','#E67E22','#9B59B6','#1ABC9C',
@@ -1820,10 +1844,11 @@ function runAnimations(evs) {
       showNoEffect();
     }
   if (e.kind === 'var') {
-      const seatName = (view?.seats[e.seat] || {}).name || '';
-      const label = e.overturned ? 'اتلغى!' : 'اتأكد!';
-      const sub = `المراجعة على ${(CARDS[e.reviewing] || {}).ar || e.reviewing || 'الحدث'}`;
-      showCoin(e.flip, e.call, label, sub);
+      const rev = e.reviewing || '';
+      const ctx = VAR_CONTEXT[rev] || VAR_CONTEXT[''];
+      const label = e.overturned ? ctx.overturnLabel : ctx.standLabel;
+      const sub = ctx.subject;
+      showCoin(e.flip, label, sub, ctx);
     }
     if (e.kind === 'goal') {
       const myTeam = view?.you % 2;
@@ -1980,8 +2005,8 @@ const PHASE_TEXT = {
   defense: ['رد على الهجمة', 'لازم تلعب كارت حتى لو مالكش رد'],
   react_own_goal: ['الشوطة عدّت! معاك Own Goal', 'تلعبه؟ النقطة تتحسب لك'],
   reshuffle_pick: ['اختار كارتين للتبديل', 'اللي تختاره هو اللي يمشي'],
-  react_var_offside: ['الحكم اتحكم تسلل — معاك VAR', 'هل تطلب المراجعة؟ وش يلغي، ضهر يأكد'],
-  react_var: ['اتسجل هدف — معاك VAR', 'اختار وش أو ضهر: ضهر يلغي الهدف'],
+  react_var_offside: ['الحكم اتحكم تسلل — معاك VAR', 'العب الكارت والعملة تتقلب'],
+  react_var: ['اتسجل هدف — معاك VAR', 'العب الكارت والعملة تتقلب'],
 };
 
 function render() {
@@ -2127,12 +2152,14 @@ function commLine(e) {
       return ttl('أون جول') +
         txt(`<b>${n(e.seat)}</b> لعب أون جول وقلب الشوطة لصالحه.`);
 
-    case 'var':
+    case 'var': {
+      const vc = VAR_CONTEXT[e.reviewing || ''] || VAR_CONTEXT[''];
       return ttl('مراجعة VAR') +
-        txt(`<b>${n(e.seat)}</b> طلب المراجعة على ${AR(e.reviewing || 'GOAL')} ` +
-            `وقال ${e.call === 'heads' ? 'وش' : 'ضهر'} — العملة طلعت ` +
-            `<b>${e.flip === 'heads' ? 'وش' : 'ضهر'}</b>، ` +
-            (e.overturned ? 'القرار اتلغى.' : 'القرار اتأكد.'));
+        txt(`<b>${n(e.seat)}</b> طلب مراجعة ${vc.subject.replace('مراجعة ','')} — ` +
+            (e.overturned
+              ? `القرار اتلغى. <b>${vc.overturnLabel}</b>`
+              : `القرار اتأكد. <b>${vc.standLabel}</b>`));
+    }
 
     case 'goal_overturned':
       return ttl('الهدف اتلغى') + txt(`المراجعة لغت هدف <b>${n(e.scorer)}</b>.`);
@@ -2416,8 +2443,7 @@ function renderHand() {
           dual.className = 'dual';
           faceActs.forEach(a => {
             const b = document.createElement('button');
-            b.textContent = a.call ? (a.call === 'heads' ? 'وش' : 'ضهر')
-              : a.swap ? (a.swap === 'deck' ? 'من الديك' : 'مع زميلك')
+            b.textContent = a.swap ? (a.swap === 'deck' ? 'من الديك' : 'مع زميلك')
               : AR(a.face);
             b.onclick = ev => { ev.stopPropagation(); submit(a); };
             dual.appendChild(b);

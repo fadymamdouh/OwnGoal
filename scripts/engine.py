@@ -305,9 +305,7 @@ class Game:
         if self.phase == "react_var_offside" and seat_i == self.pending["seat"]:
             for c in me.hand:
                 if "VAR" in c.faces:
-                    for call in ("heads", "tails"):
-                        acts.append({"type": "play", "card_id": c.id,
-                                     "face": "VAR", "call": call, "counters": True})
+                    acts.append({"type": "play", "card_id": c.id, "face": "VAR", "counters": True})
             acts.append({"type": "pass"})   # always offered — attacker can waive
             return acts
 
@@ -440,9 +438,7 @@ class Game:
             self.def_owed = 0
             flip = self.rng.choice(["heads", "tails"])
             overturned = flip == "tails"
-            self._emit("var", seat=seat_i, call=action.get("call"), flip=flip,
-                       overturned=overturned, confirmed=flip == action.get("call"),
-                       reviewing=target)
+            self._emit("var", seat=seat_i, flip=flip, overturned=overturned, reviewing=target)
             self._emit("defense_played", seat=seat_i, face=face,
                        stopped=overturned)
             if overturned:
@@ -539,9 +535,7 @@ class Game:
         self._burn(seat, card)
         flip = self.rng.choice(["heads", "tails"])
         overturned = flip == "tails"
-        self._emit("var", seat=seat_i, call=action.get("call"), flip=flip,
-                   overturned=overturned, confirmed=flip == action.get("call"),
-                   reviewing="OFFSIDE")
+        self._emit("var", seat=seat_i, flip=flip, overturned=overturned, reviewing="OFFSIDE")
         if overturned:
             self.no_var_review = True
             self._resolve_stopped("OFFSIDE", def_seat)
@@ -757,13 +751,13 @@ def bot_action(game: Game, seat_i, policy="SHOOTER"):
         return og[0] if og else {"type": "pass"}
 
     if game.phase == "react_var":
-        v = [a for a in acts if a.get("face") == "VAR" and a.get("call") == "heads"]
+        v = [a for a in acts if a.get("face") == "VAR"]
         return v[0] if v else {"type": "pass"}
 
     # Picking cards to swap away. A human dumps their least useful cards, so the
     # bot does the same: keep shots and split cards, spend spares first.
     if game.phase == "react_var_offside":
-        va = next((a for a in acts if a.get("face") == "VAR" and a.get("call") == "heads"), None)
+        va = next((a for a in acts if a.get("face") == "VAR"), None)
         return va or {"type": "pass"}
 
     if game.phase == "reshuffle_pick":

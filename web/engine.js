@@ -249,8 +249,7 @@ export class Game {
       for (const c of me.hand) {
         // VAR answers a Goal or a Penalty as a review — the caller picks a side
         if (c.faces.includes('VAR') && (COUNTERS.VAR || new Set()).has(target)) {
-          acts.push({ type: 'play', card_id: c.id, face: 'VAR', call: 'heads', counters: true });
-          acts.push({ type: 'play', card_id: c.id, face: 'VAR', call: 'tails', counters: true });
+          acts.push({ type: 'play', card_id: c.id, face: 'VAR', counters: true });
           continue;
         }
         let f = faceOfClass(c, 'defense');
@@ -283,8 +282,7 @@ export class Game {
     if (this.phase === 'react_var_offside' && seatIndex === this.pending.seat) {
       for (const c of me.hand) {
         if (c.faces.includes('VAR')) {
-          acts.push({ type: 'play', card_id: c.id, face: 'VAR', call: 'heads', counters: true });
-          acts.push({ type: 'play', card_id: c.id, face: 'VAR', call: 'tails', counters: true });
+          acts.push({ type: 'play', card_id: c.id, face: 'VAR', counters: true });
         }
       }
       acts.push({ type: 'pass' });   // always offered — attacker can waive
@@ -427,10 +425,7 @@ export class Game {
       this.defOwed = 0;
       const flip = this.rng.pick(['heads', 'tails']);
       const overturned = flip === 'tails';
-      this._emit('var', {
-        seat: seatIndex, call: action.call, flip, overturned,
-        confirmed: flip === action.call, reviewing: target,
-      });
+      this._emit('var', { seat: seatIndex, flip, overturned, reviewing: target });
       this._emit('defense_played', { seat: seatIndex, face, stopped: overturned });
       if (overturned) { this._resolveStopped('VAR', seatIndex); return; }
       this.noVarReview = true;     // this event has had its one review
@@ -530,8 +525,7 @@ export class Game {
     const flip = this.rng.pick(['heads', 'tails']);
     const overturned = flip === 'tails';   // tails = offside confirmed (stands)
     this._emit('var', {
-      seat: seatIndex, call: action.call, flip, overturned,
-      confirmed: flip === action.call, reviewing: 'OFFSIDE',
+      seat: seatIndex, flip, overturned, reviewing: 'OFFSIDE',
     });
     if (overturned) {
       // offside confirmed — resolve it normally
@@ -595,8 +589,7 @@ export class Game {
     // heads confirms the decision, tails overturns it
     const overturned = flip === 'tails';
     this._emit('var', {
-      seat: seatIndex, call: action.call, flip, overturned,
-      confirmed: flip === action.call,
+      seat: seatIndex, flip, overturned,
     });
     if (overturned) {
       this.score[this.team(p.scorer)] -= 1;
@@ -759,7 +752,7 @@ export function botAction(game, seatIndex, policy = 'SHOOTER') {
     return acts.find(a => a.face === 'OWN_GOAL') || { type: 'pass' };
   }
   if (game.phase === 'react_var') {
-    return acts.find(a => a.face === 'VAR' && a.call === 'heads') || { type: 'pass' };
+    return acts.find(a => a.face === 'VAR') || { type: 'pass' };
   }
 
   /* Picking cards to swap away. A human would dump their least useful cards, so
@@ -767,7 +760,7 @@ export function botAction(game, seatIndex, policy = 'SHOOTER') {
      goes first, keeping shots and split cards. */
   if (game.phase === 'react_var_offside') {
     // attacker contests an offside call — take the VAR if held, otherwise pass
-    const va = acts.find(a => a.face === 'VAR' && a.call === 'heads');
+    const va = acts.find(a => a.face === 'VAR');
     return va || { type: 'pass' };
   }
 

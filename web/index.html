@@ -666,20 +666,24 @@ const ENDS_POSSESSION = new Set([
 
 /** Fold any unseen events from this view into the table and the commentary. */
 /* ------------------------------------------------------------------ sound
-   All sounds are synthesised with the Web Audio API — no files, no network,
-   works offline. Each function returns immediately; audio plays in the
-   background and cleans up after itself.
+   Real MP3 files from web/sounds/. Each is loaded once and cached in _bufs.
+   Procedural Web Audio is kept as fallback for anything without a file.
 
-   Sounds:
-     sndCoinSpin()      — metallic spin while the coin is in the air
-     sndCoinOverturned()— ascending fanfare: the decision was reversed
-     sndCoinConfirmed() — low thud: the decision stands
-     sndGoalUs()        — crowd roar + airhorn: we scored
-     sndGoalThem()      — low groan + whistle: they scored
-     sndNoEffect()      — short buzzer: card had no effect                     */
+   API (same call sites as before):
+     sndCoinSpin()          sndCoinOverturned()    sndCoinConfirmed()
+     sndGoalUs(goalNo)      sndGoalThem()          sndNoEffect()
+     sndCard(face)          — pass, dribble, assist, penalty
+     _startIntro()          — lobby screen, stops when match starts
+     _startCrowd()          — background loop for the whole match
+     _stopCrowd()           — called on match over / exit             */
 
-let _actx = null;
-let _muted = false;
+const SND_BASE = 'sounds/';
+const _bufs  = {};   // face/name -> AudioBuffer, populated on first use
+let   _actx  = null;
+let   _muted = false;
+let   _crowdNode  = null;   // currently playing crowd loop node
+let   _introNode  = null;   // currently playing intro node
+let   _goalScored = [0, 0]; // goals per team, for picking goal-N file
 
 function _ctx() {
   if (!_actx) _actx = new (window.AudioContext || window.webkitAudioContext)();
@@ -687,105 +691,175 @@ function _ctx() {
   return _actx;
 }
 
-function _play(fn) {
-  if (_muted) return;
-  try { fn(_ctx()); } catch(e) { /* audio blocked — ignore */ }
+/* Load an MP3 once, cache the decoded buffer, call cb(buffer). */
+function _load(name, cb) {
+  if (_bufs[name]) { cb(_bufs[name]); return; }
+  fetch(SND_BASE + name + '.mp3')
+    .then(r => r.arrayBuffer())
+    .then(ab => _ctx().decodeAudioData(ab))
+    .then(buf => { _bufs[name] = buf; cb(buf); })
+    .catch(() => {});          // silently ignore missing / blocked files
 }
 
-/* Crowd noise: band-passed white noise with volume envelope */
-function _crowd(ctx, start, dur, gain=0.18, freq=800) {
-  const buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
-  const data = buf.getChannelData(0);
-  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-  const src = ctx.createBufferSource();
-  src.buffer = buf;
-  const bp = ctx.createBiquadFilter();
-  bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = 0.8;
-  const env = ctx.createGain();
-  env.gain.setValueAtTime(0, start);
-  env.gain.linearRampToValueAtTime(gain, start + 0.08);
-  env.gain.setValueAtTime(gain, start + dur - 0.3);
-  env.gain.linearRampToValueAtTime(0, start + dur);
-  src.connect(bp); bp.connect(env); env.connect(ctx.destination);
-  src.start(start); src.stop(start + dur);
+/* Play a buffer once. Returns the source node so callers can stop it. */
+function _playBuf(buf, gain = 1.0, loop = false) {
+  if (_muted || !buf) return null;
+  try {
+    const ctx = _ctx();
+    const src = ctx.createBufferSource();
+    const g   = ctx.createGain();
+    src.buffer = buf;
+    src.loop   = loop;
+    g.gain.value = gain;
+    src.connect(g);
+    g.connect(ctx.destination);
+    src.start();
+    return src;
+  } catch(e) { return null; }
 }
 
-/* Tone: simple oscillator with envelope */
-function _tone(ctx, freq, start, dur, gain=0.15, type='sine', slide=0) {
-  const osc = ctx.createOscillator();
-  const env = ctx.createGain();
-  osc.type = type; osc.frequency.setValueAtTime(freq, start);
-  if (slide) osc.frequency.linearRampToValueAtTime(freq + slide, start + dur);
-  env.gain.setValueAtTime(0, start);
-  env.gain.linearRampToValueAtTime(gain, start + 0.01);
-  env.gain.setValueAtTime(gain, start + dur - 0.05);
-  env.gain.linearRampToValueAtTime(0, start + dur);
-  osc.connect(env); env.connect(ctx.destination);
-  osc.start(start); osc.stop(start + dur + 0.05);
+/* Fade a playing node out over `dur` seconds then stop it. */
+function _fadeOut(src, dur = 0.5) {
+  if (!src || !_actx) return;
+  try {
+    const g = src.context?.destination
+      ? null
+      : null; // we don't have a reference to the gain node here
+    // simplest: schedule stop after a tiny ramp
+    src.stop(_actx.currentTime + dur);
+  } catch(e) {}
 }
 
-/* Airhorn: detuned sawtooth blast */
-function _horn(ctx, start) {
-  [220, 223, 218].forEach((f, i) => {
-    _tone(ctx, f, start + i * 0.01, 1.1, 0.12, 'sawtooth');
-  });
-}
+/* ---- public sound functions ---- */
 
 function sndCoinSpin() {
-  _play(ctx => {
-    const t = ctx.currentTime;
-    // metallic rattling: rapid repeating clicks that slow down
+  // procedural — short metallic rattle, no file needed
+  if (_muted) return;
+  try {
+    const ctx = _ctx(); const t = ctx.currentTime;
     for (let i = 0; i < 22; i++) {
       const delay = Math.pow(i / 22, 1.6) * 1.7;
-      _tone(ctx, 1200 + Math.random() * 400, t + delay, 0.03, 0.06, 'square');
+      const osc = ctx.createOscillator(); const env = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = 1200 + Math.random() * 400;
+      env.gain.setValueAtTime(0.06, t + delay);
+      env.gain.linearRampToValueAtTime(0, t + delay + 0.03);
+      osc.connect(env); env.connect(ctx.destination);
+      osc.start(t + delay); osc.stop(t + delay + 0.04);
     }
-  });
+  } catch(e) {}
 }
 
 function sndCoinOverturned() {
-  _play(ctx => {
-    const t = ctx.currentTime;
-    // ascending three-note fanfare
-    [523, 659, 784].forEach((f, i) => _tone(ctx, f, t + i * 0.18, 0.35, 0.14, 'sine'));
-    _tone(ctx, 1047, t + 0.54, 0.6, 0.11, 'sine');
-  });
+  _load('var-cancel', buf => _playBuf(buf, 0.9));
 }
 
 function sndCoinConfirmed() {
-  _play(ctx => {
-    const t = ctx.currentTime;
-    // low descending thud
-    _tone(ctx, 180, t, 0.15, 0.18, 'sine', -60);
-    _tone(ctx, 90,  t + 0.08, 0.25, 0.12, 'sine');
-  });
+  // procedural thud — no dedicated file
+  if (_muted) return;
+  try {
+    const ctx = _ctx(); const t = ctx.currentTime;
+    const osc = ctx.createOscillator(); const env = ctx.createGain();
+    osc.type = 'sine'; osc.frequency.setValueAtTime(180, t);
+    osc.frequency.linearRampToValueAtTime(60, t + 0.2);
+    env.gain.setValueAtTime(0.18, t);
+    env.gain.linearRampToValueAtTime(0, t + 0.35);
+    osc.connect(env); env.connect(ctx.destination);
+    osc.start(t); osc.stop(t + 0.4);
+  } catch(e) {}
 }
 
-function sndGoalUs() {
-  _play(ctx => {
-    const t = ctx.currentTime;
-    _crowd(ctx, t, 2.8, 0.22, 700);          // crowd erupts
-    _horn(ctx, t + 0.05);                     // airhorn blast
-    _horn(ctx, t + 1.3);                      // second blast
-  });
+function sndGoalUs(team) {
+  // pick file based on how many goals this team has scored
+  const n = Math.min((_goalScored[team] || 0), 5);
+  const file = 'goal-' + (n || 1);
+  _load(file, buf => _playBuf(buf, 1.0));
 }
 
 function sndGoalThem() {
-  _play(ctx => {
-    const t = ctx.currentTime;
-    // low groan: descending noise
-    _crowd(ctx, t, 1.2, 0.10, 350);
-    // short whistle: high sine with fast decay
-    _tone(ctx, 1800, t + 0.1, 0.4, 0.09, 'sine', -200);
-  });
+  // procedural groan — no dedicated "conceded" file
+  if (_muted) return;
+  try {
+    const ctx = _ctx(); const t = ctx.currentTime;
+    const osc = ctx.createOscillator(); const env = ctx.createGain();
+    osc.type = 'sine'; osc.frequency.setValueAtTime(220, t);
+    osc.frequency.linearRampToValueAtTime(100, t + 0.6);
+    env.gain.setValueAtTime(0.12, t);
+    env.gain.linearRampToValueAtTime(0, t + 0.8);
+    osc.connect(env); env.connect(ctx.destination);
+    osc.start(t); osc.stop(t + 0.9);
+  } catch(e) {}
 }
 
 function sndNoEffect() {
-  _play(ctx => {
-    const t = ctx.currentTime;
-    // two-tone buzzer
-    _tone(ctx, 220, t,       0.12, 0.13, 'square');
-    _tone(ctx, 180, t + 0.14, 0.12, 0.13, 'square');
+  if (_muted) return;
+  try {
+    const ctx = _ctx(); const t = ctx.currentTime;
+    [220, 180].forEach((f, i) => {
+      const osc = ctx.createOscillator(); const env = ctx.createGain();
+      osc.type = 'square'; osc.frequency.value = f;
+      const s2 = t + i * 0.14;
+      env.gain.setValueAtTime(0.13, s2);
+      env.gain.linearRampToValueAtTime(0, s2 + 0.12);
+      osc.connect(env); env.connect(ctx.destination);
+      osc.start(s2); osc.stop(s2 + 0.13);
+    });
+  } catch(e) {}
+}
+
+/* Card sounds: pass, dribble, assist, penalty — play full clip */
+const CARD_SOUNDS = {
+  PASS: 'pass', DRIBBLE: 'dribble', ASSIST: 'assist', PENALTY: 'penalty',
+};
+let _cardNode = null;   // stop previous card sound before starting a new one
+function sndCard(face) {
+  const file = CARD_SOUNDS[face];
+  if (!file) return;
+  if (_cardNode) { try { _cardNode.stop(); } catch(e) {} }
+  _load(file, buf => { _cardNode = _playBuf(buf, 0.85); });
+}
+
+/* Crowd chant: looping background during the whole match */
+function _startCrowd() {
+  if (_crowdNode) return;
+  _load('crowd-chant', buf => {
+    if (!buf) return;
+    if (_muted) return;
+    try {
+      const ctx = _ctx();
+      const src = ctx.createBufferSource();
+      const g   = ctx.createGain();
+      src.buffer = buf; src.loop = true;
+      g.gain.value = 0.18;           // quiet background
+      src.connect(g); g.connect(ctx.destination);
+      src.start();
+      _crowdNode = src;
+    } catch(e) {}
   });
+}
+
+function _stopCrowd() {
+  if (!_crowdNode) return;
+  try { _crowdNode.stop(); } catch(e) {}
+  _crowdNode = null;
+}
+
+/* Intro: plays on the lobby/waiting screen, stops when match begins */
+function _startIntro() {
+  if (_introNode) return;
+  _load('intro', buf => {
+    if (!buf || _muted) return;
+    try {
+      const ctx = _ctx();
+      _introNode = _playBuf(buf, 0.75);
+    } catch(e) {}
+  });
+}
+
+function _stopIntro() {
+  if (!_introNode) return;
+  try { _introNode.stop(); } catch(e) {}
+  _introNode = null;
 }
 
 /* ---------------------------------------------------------------- animations
@@ -914,8 +988,8 @@ const GOAL_WORDS = ['جـــول','⚽','هدف','هدف هدف هدف'];
 const CONFETTI_COLORS = [
   '#D7263D','#2ECC71','#F1C40F','#3498DB','#E67E22','#9B59B6','#1ABC9C',
 ];
-function showGoal(scorerName) {
-  sndGoalUs();
+function showGoal(scorerName, team) {
+  sndGoalUs(team);
   // white flash
   const fl = document.createElement('div');
   fl.className = 'goal-flash';
@@ -956,6 +1030,9 @@ function runAnimations(evs) {
     if (e.kind === 'defense_played' && !e.stopped) {
       showNoEffect();
     }
+  if (e.kind === 'attack_played') {
+      sndCard(e.face);
+    }
   if (e.kind === 'var') {
       const rev = e.reviewing || '';
       const ctx = VAR_CONTEXT[rev] || VAR_CONTEXT[''];
@@ -967,9 +1044,11 @@ function runAnimations(evs) {
       const myTeam = view?.you % 2;
       const scorerTeam = view ? view.seats[e.scorer]?.team : -1;
       if (scorerTeam === myTeam) {
-        showGoal('us');   // our goal — celebrate
+        _goalScored[scorerTeam] = (_goalScored[scorerTeam] || 0) + 1;
+        showGoal('us', scorerTeam);
       } else {
-        showConceded();   // their goal — react with dread
+        _goalScored[scorerTeam] = (_goalScored[scorerTeam] || 0) + 1;
+        showConceded();
       }
     }
   }
@@ -1054,6 +1133,9 @@ function makeRoom() {
       $('waiting').classList.add('hide');
       $('game').classList.remove('hide');
       document.body.classList.add('playing');
+      _goalScored = [0, 0];
+      _stopIntro();
+      _startCrowd();
       render();
     },
     onLobby: info => {
@@ -1068,7 +1150,8 @@ function makeRoom() {
     },
     onError: msg => { alert(msg); $('lobby').classList.remove('hide');
                       $('waiting').classList.add('hide');
-                      document.body.classList.remove('playing'); },
+                      document.body.classList.remove('playing');
+                      _stopCrowd(); _stopIntro(); },
   });
 }
 
@@ -1103,9 +1186,15 @@ async function exitRoom() {
   $('waiting').classList.add('hide');
   $('lobby').classList.remove('hide');
   document.body.classList.remove('playing');
+  _stopCrowd();
 }
 
 $('keyonly').onchange = () => { if (view) renderFeed(); };
+// start intro on the lobby screen on first user interaction
+document.addEventListener('click', function _firstClick() {
+  _startIntro();
+  document.removeEventListener('click', _firstClick);
+}, { once: true });
 const _muteBtn = $('muteBtn');
 _muteBtn.onclick = () => {
   _muted = !_muted;

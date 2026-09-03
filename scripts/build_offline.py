@@ -107,6 +107,22 @@ class Room {
 }
 '''
 
+# --- embed sounds as base64 data URIs so the offline file is self-contained ---
+import base64 as _b64mod
+_sounds_dir = WEB / 'sounds'
+_sound_js = 'function _preloadSounds() {}'   # fallback if no sounds folder
+if _sounds_dir.exists():
+    _lines = ['async function _preloadSounds() {', '  try {', '    const ctx = _ctx();']
+    for _sf in sorted(_sounds_dir.glob('*.mp3')):
+        _b64 = _b64mod.b64encode(_sf.read_bytes()).decode()
+        _nm  = repr(_sf.stem)
+        _lines.append(
+            f'    _bufs[{_nm}] = await ctx.decodeAudioData('
+            f'Uint8Array.from(atob({repr(_b64)}),c=>c.charCodeAt(0)).buffer);'
+        )
+    _lines += ['  } catch(e) {}', '}']
+    _sound_js = '\n'.join(_lines)
+
 out = f'''<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -126,6 +142,8 @@ out = f'''<!DOCTYPE html>
 {engine}
 {local_room}
 {ui}
+{_sound_js}
+document.addEventListener('click',function _pc(){{_preloadSounds();document.removeEventListener('click',_pc);}},{{once:true}});
 </script>
 </body>
 </html>

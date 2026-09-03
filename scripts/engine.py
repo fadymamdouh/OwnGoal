@@ -274,12 +274,10 @@ class Game:
         if self.phase == "defense" and seat_i == self.defender:
             target = self.chain[-1]
             for c in me.hand:
-                # VAR answers a Goal or a Penalty as a review, caller picks a side
+                # VAR answers a Goal or a Penalty as a review — pure luck flip, no call
                 if "VAR" in c.faces and target in COUNTERS.get("VAR", set()):
-                    for call in ("heads", "tails"):
-                        acts.append({"type": "play", "card_id": c.id,
-                                     "face": "VAR", "call": call,
-                                     "counters": True})
+                    acts.append({"type": "play", "card_id": c.id,
+                                 "face": "VAR", "counters": True})
                     continue
                 f = c.face_of_class("defense") or ("CHAIN" if "CHAIN" in c.faces else None)
                 if f and f in DEFENSE_FACES:
@@ -319,10 +317,7 @@ class Game:
         if self.phase == "react_var" and seat_i == self.pending["seat"]:
             for c in me.hand:
                 if "VAR" in c.faces:
-                    acts.append({"type": "play", "card_id": c.id, "face": "VAR",
-                                 "call": "heads"})
-                    acts.append({"type": "play", "card_id": c.id, "face": "VAR",
-                                 "call": "tails"})
+                    acts.append({"type": "play", "card_id": c.id, "face": "VAR"})
             acts.append({"type": "pass"})
             return acts
 
@@ -587,12 +582,8 @@ class Game:
         seat = self.seats[seat_i]
         self._burn(seat, seat.find(action["card_id"]))
         flip = self.rng.choice(["heads", "tails"])
-        confirmed = flip == action["call"]
-        # the caller wins the flip only if it lands on the side they called;
-        # heads confirms the decision, tails overturns it
         overturned = flip == "tails"
-        self._emit("var", seat=seat_i, call=action["call"], flip=flip,
-                   overturned=overturned, confirmed=confirmed)
+        self._emit("var", seat=seat_i, flip=flip, overturned=overturned)
         if overturned:
             self.score[self.team(p["scorer"])] -= 1
             self._emit("goal_overturned", scorer=p["scorer"], score=list(self.score))

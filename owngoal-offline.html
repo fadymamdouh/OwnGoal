@@ -1057,8 +1057,7 @@ class Game {
     if (this.phase === 'react_var' && seatIndex === this.pending.seat) {
       for (const c of me.hand) {
         if (c.faces.includes('VAR')) {
-          acts.push({ type: 'play', card_id: c.id, face: 'VAR', call: 'heads' });
-          acts.push({ type: 'play', card_id: c.id, face: 'VAR', call: 'tails' });
+          acts.push({ type: 'play', card_id: c.id, face: 'VAR' });
         }
       }
       acts.push({ type: 'pass' });

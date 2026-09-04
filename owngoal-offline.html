@@ -245,12 +245,15 @@ input::placeholder{color:#55525f}
 .drawpick{position:absolute;bottom:74px;inset-inline-end:6px;display:flex;gap:4px;z-index:6}
 .drawpick button{background:#15151f;border:1px solid var(--special-glow);
   color:var(--ink);border-radius:8px;padding:7px 10px;font-size:13px;font-weight:700}
-.flyer{position:absolute;bottom:9px;inset-inline-end:12px;width:44px;height:60px;
-  border-radius:7px;z-index:7;border:1px solid #33244a;pointer-events:none;
-  background:repeating-linear-gradient(45deg,#1b1230 0 5px,#160f28 5px 10px);
-  animation:fly .5s cubic-bezier(.4,0,.6,1) forwards}
-@keyframes fly{0%{opacity:1}
-  100%{transform:translate(84px,160px) rotate(12deg) scale(.82);opacity:0}}
+.flyer{position:fixed;z-index:1200;pointer-events:none;border-radius:9px;
+  border:1.5px solid #5a3fa0;overflow:hidden;
+  box-shadow:0 6px 28px #0009;
+  will-change:transform,opacity;
+  transition:transform 400ms cubic-bezier(0.25,1,0.5,1),
+             opacity   400ms cubic-bezier(0.25,1,0.5,1)}
+.flyer img{width:100%;height:100%;object-fit:cover;border-radius:9px}
+/* hand cards shift right to make room when a card flies in */
+.hand .card.shifting{transition:transform 400ms cubic-bezier(0.25,1,0.5,1)}
 /* a card dealt but not yet pulled off the deck (LUCK mode) */
 .card.facedown{background:repeating-linear-gradient(45deg,#1b1230 0 7px,#160f28 7px 14px)}
 .card.facedown .half,.card.facedown .splitmark{visibility:hidden}
@@ -2576,12 +2579,100 @@ function renderTable() {
   $('tablehint').classList.toggle('hide', table.length > 0);
 }
 
-function flyCard(i) {
-  const f = document.createElement('div');
+/* Fly one card from the deck to the hand.
+   i        — stagger index for multiple cards drawn at once
+   onLand   — optional callback fired when the card reaches the slot          */
+function flyCard(i, onLand) {
+  const DELAY = i * 110;   // stagger multiple cards
+  const DURATION = 400;
+
+  // ── source: the deck element ────────────────────────────────────────────
+  const deck = $('deckpile');
+  const dr   = deck.getBoundingClientRect();
+  const srcX = dr.left + dr.width  / 2;
+  const srcY = dr.top  + dr.height / 2;
+
+  // ── destination: leftmost facedown slot, or end of current hand ─────────
+  // We measure BEFORE adding the card, so the slot doesn't exist yet.
+  // Strategy: find the hand element's bounding rect and compute where the
+  // next card will land, taking into account existing card widths + gap.
+  const handEl  = $('hand');
+  const handR   = handEl.getBoundingClientRect();
+  const cards   = [...handEl.querySelectorAll('.card:not(.shifting)')];
+  const gap     = 8;   // matches CSS .hand gap
+  const cardW   = cards.length ? cards[0].getBoundingClientRect().width : 120;
+  const cardH   = cards.length ? cards[0].getBoundingClientRect().height : 168;
+
+  // In RTL the hand grows right-to-left; in LTR left-to-right.
+  // getBoundingClientRect is always in visual screen coords, so we can
+  // compute directly regardless of direction.
+  let dstX, dstY;
+  const existingFacedown = handEl.querySelector('.card.facedown');
+  if (existingFacedown) {
+    const fr = existingFacedown.getBoundingClientRect();
+    dstX = fr.left + fr.width  / 2;
+    dstY = fr.top  + fr.height / 2;
+  } else if (cards.length === 0) {
+    // empty hand — land in the centre of the hand element
+    dstX = handR.left + cardW / 2;
+    dstY = handR.top  + cardH / 2;
+  } else {
+    // land at the right end of the existing row (RTL: leftmost visually)
+    const last = cards[cards.length - 1].getBoundingClientRect();
+    const dir  = document.documentElement.dir === 'rtl' ? -1 : 1;
+    dstX = last.right * (dir > 0 ? 1 : 0) + last.left * (dir > 0 ? 0 : 1)
+           + dir * (gap + cardW / 2);
+    dstY = last.top + cardH / 2;
+  }
+
+  // ── spawn the flyer at the deck's centre ─────────────────────────────────
+  const W = Math.min(cardW, 60);
+  const H = Math.min(cardH, 82);
+  const f  = document.createElement('div');
   f.className = 'flyer';
-  f.style.animationDelay = `${i * 110}ms`;
-  $('table').appendChild(f);
-  setTimeout(() => f.remove(), 760 + i * 110);
+  f.style.cssText = `
+    width:${W}px; height:${H}px;
+    left:${srcX - W/2}px; top:${srcY - H/2}px;
+    transform:translate(0,0) scale(1);
+    opacity:1;
+    transition-delay:${DELAY}ms;
+    background:#12102a;`;
+
+  // card back = logo if loaded, else gradient
+  if (LOGO_SRC) {
+    const img = document.createElement('img');
+    img.src   = LOGO_SRC;
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:9px';
+    f.appendChild(img);
+  }
+  document.body.appendChild(f);
+
+  // ── shift existing hand cards right (RTL: to the right visually = +X) ────
+  // We only shift cards that are not already facedown (they were there before)
+  const toShift = [...handEl.querySelectorAll('.card:not(.facedown)')];
+  const shiftDir = document.documentElement.dir === 'rtl' ? (W + gap) : -(W + gap);
+  // mark them immediately so the transition fires from tick 0
+  toShift.forEach(c => {
+    c.classList.add('shifting');
+    c.style.transform = `translateX(${shiftDir}px)`;
+  });
+
+  // ── kick off the flight on the next paint (so the starting position renders first)
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    f.style.transform = `translate(${dstX - srcX}px, ${dstY - srcY}px) scale(${cardH/H})`;
+
+    // un-shift the hand cards at the same time so the slot "opens" for the flyer
+    toShift.forEach(c => {
+      c.style.transform = '';
+    });
+
+    // cleanup + notify
+    const cleanup = setTimeout(() => {
+      f.remove();
+      toShift.forEach(c => c.classList.remove('shifting'));
+      if (onLand) onLand();
+    }, DELAY + DURATION + 30);
+  }));
 }
 
 /* Drawing is done BY TAPPING THE DECK. In STRATEGY the tap submits a real draw
@@ -2621,10 +2712,11 @@ function submitDraw(action) {
   busyDeck = true;
   const n = action.n || 1;
   for (let i = 0; i < n; i++) flyCard(i);
+  // unblock and submit after the last card lands
   setTimeout(() => {
     busyDeck = false;
     room.submit({type: 'draw', n});
-  }, 300 + (n - 1) * 110);
+  }, 400 + (n - 1) * 110 + 30);
 }
 
 /** LUCK only: reveal the card the engine already dealt. Submits nothing. */
@@ -2633,11 +2725,12 @@ function pullDealt() {
   busyDeck = true;
   const n = facedown.length;
   for (let i = 0; i < n; i++) flyCard(i);
+  // reveal the card exactly when the last flyer lands
   setTimeout(() => {
     facedown = [];
     busyDeck = false;
     render();
-  }, 320 + (n - 1) * 110);
+  }, 400 + (n - 1) * 110 + 30);
 }
 
 /* L33: you choose which of your own cards go. Tap to stage, tap again to undo,
@@ -2700,6 +2793,12 @@ function confirmPicks() {
 }
 
 /* Show a brief explanation when a dead card is tapped. */
+// Cache the logo src at init so the card-back is available during the match
+const LOGO_SRC = (() => {
+  const img = document.querySelector('.brand-logo');
+  return img ? img.src : null;
+})();
+
 let _whyTimer = null;
 function showWhyNot(msg) {
   const t = document.getElementById('why-toast');

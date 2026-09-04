@@ -51,6 +51,7 @@ def _extract_div(html, id_):
         if depth == 0: return html[start:start+m.end()+1]
     return ''
 overlays_html = (_extract_button(_pre,'muteBtn')
+                + '<div id="why-toast"></div>\n'
                 + _extract_div(_pre,'coin-overlay')
                 + _extract_div(_pre,'goal-overlay'))
 ui = re.sub(r'^\s*import\s+.*?;\s*$', '', ui, flags=re.M | re.S)

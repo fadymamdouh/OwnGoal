@@ -475,6 +475,7 @@ html::-webkit-scrollbar-thumb{background:#2a2140;border-radius:3px}
 </head>
 <body>
 <button id="muteBtn" title="كتم الصوت">🔊</button>
+<div id="why-toast"></div>
 <div id="coin-overlay">
   <div class="coin-wrap">
     <div class="coin" id="coin-el">
@@ -2698,6 +2699,37 @@ function confirmPicks() {
   for (const id of send) room.submit({type: 'pick', card_id: id});
 }
 
+/* Show a brief explanation when a dead card is tapped. */
+let _whyTimer = null;
+function showWhyNot(msg) {
+  const t = document.getElementById('why-toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  if (_whyTimer) clearTimeout(_whyTimer);
+  _whyTimer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+function whyDead(face, v) {
+  const phase = v.phase;
+  const myTurn = v.you === v.possession;
+  const defending = phase === 'defense' && v.you === v.defender;
+  if (face === 'END_MATCH') {
+    if (defending) return 'نهاية الماتش — في دورك هجوم بس';
+    if (!myTurn)   return 'مش دورك دلوقتي';
+    return 'مش وقتها دلوقتي';
+  }
+  if (face === 'PENALTY') {
+    if (!(v.seats[v.you] || {}).fouled) return 'البنالتي — لازم يلعبوا فاول عليك الأول';
+    return 'مش وقتها دلوقتي';
+  }
+  if (face === 'GOAL') return 'الجول — لازم زميلك يلعب أسيست الأول';
+  if (CARDS[face]?.class === 'attack' && defending) return 'ده كارت هجوم — إنت بتدافع دلوقتي';
+  if (CARDS[face]?.class === 'defense' && myTurn && !defending) return 'ده كارت دفاع — العب كارت هجوم';
+  if (!myTurn && !defending) return 'مش دورك دلوقتي';
+  return 'مش ينفع تلعبه دلوقتي';
+}
+
 function renderHand() {
   const v = view, box = $('hand');
   box.innerHTML = '';
@@ -2766,6 +2798,16 @@ function renderHand() {
           });
           half.appendChild(dual);
         }
+      }
+      if (!faceActs.length) {
+        // dead half — still tappable; explain why
+        half.onclick = ev => {
+          ev.stopPropagation();
+          showWhyNot(whyDead(face, v));
+          el.style.animation = 'none';
+          el.offsetHeight;
+          el.style.animation = '';
+        };
       }
       el.appendChild(half);
     });

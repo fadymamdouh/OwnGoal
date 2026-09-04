@@ -322,7 +322,8 @@
       "stops": [
         "SHOT_GOAL",
         "GOAL",
-        "PENALTY"
+        "PENALTY",
+        "SUPER_SHOT"
       ]
     },
     {
@@ -410,7 +411,7 @@
       "timing": "Playable on your own attacking turn only, and it does NOT consume the attack — you still play your attack card the same turn. While defending it cannot be activated; it is only burn fodder for the mandatory-defence rule.",
       "why_it_matters": "With no playable attack card your only alternative is to concede possession, so Reshuffle is the escape hatch from a dead hand."
     },
-    "end_match": "Playable at any time with no mechanical precondition — deliberately a \"رخامة\" (troll) card. The match ends instantly and the higher score wins. CLOSED: if the scores are LEVEL when it is played, the win goes to the OPPONENT of the player who played it. So the card is never a free win — playing it while not ahead hands the match away. Draws are therefore impossible.",
+    "end_match": "Playable on your OWN ATTACKING TURN only — it cannot be activated while defending. CLOSED (L35): playing it as a defense card was never intended; it is a troll card for attackers, not a panic button. The match ends instantly and the higher score wins. If scores are LEVEL the win goes to the OPPONENT (so it is never a free win while trailing or tied). Draws are impossible.",
     "deck_refill": "The deck never runs out. When it empties, shuffle the discard pile and keep drawing from it. A match therefore only ends on goals_to_win or END_MATCH.",
     "assist": "An attack card at pass stage, 2v2 only. If the defense fails to stop it, possession transfers to your PARTNER rather than staying with you — and that partner may then play GOAL. If the Assist is stopped, no Goal is possible from it.",
     "counter_attack": "STRATEGY mode only. A defender who breaks possession with cards still in hand from his draw plays them immediately as his own attack chain. The original attacker then defends against it, answering only the last card of the counter-chain.",

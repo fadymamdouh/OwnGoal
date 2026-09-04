@@ -131,7 +131,7 @@ const RULEBOOK_TABLE = {
   PASS:       ['INTERCEPTION', 'BLOCK', 'OFFSIDE', 'FOUL', 'CHAIN'],
   DRIBBLE:    ['TACKLE', 'FOUL', 'CHAIN'],
   SHOT_GOAL:  ['GOAL_KEEPER', 'BLOCK_SHOT', 'OFFSIDE', 'OWN_GOAL'],
-  SUPER_SHOT: ['BLOCK_SAVE'],
+  SUPER_SHOT: ['BLOCK_SAVE', 'OWN_GOAL'],
   ASSIST:     ['INTERCEPTION', 'BLOCK', 'OFFSIDE', 'FOUL', 'CHAIN'],
   GOAL:       ['OFFSIDE', 'VAR', 'OWN_GOAL'],
   PENALTY:    ['OWN_GOAL', 'VAR'],
@@ -147,8 +147,10 @@ for (const [attack, expected] of Object.entries(RULEBOOK_TABLE)) {
         `missing [${missing}] unexpected [${extra}]`);
 }
 
-check('Super Shot has exactly one answer in the whole game',
-      defensesThatStop('SUPER_SHOT').size === 1);
+check('Super Shot is answered by Block Save and Own Goal (L35)',
+      defensesThatStop('SUPER_SHOT').has('BLOCK_SAVE') &&
+      defensesThatStop('SUPER_SHOT').has('OWN_GOAL') &&
+      defensesThatStop('SUPER_SHOT').size === 2);
 check('Foul cannot answer any shot or scoring card',
       ['SHOT_GOAL', 'SUPER_SHOT', 'GOAL', 'PENALTY']
         .every(f => !defensesThatStop(f).has('FOUL')));

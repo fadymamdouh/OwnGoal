@@ -260,6 +260,8 @@ export class Game {
             counters: (COUNTERS[f] || new Set()).has(target),
           });
         } else {
+          // L35: END_MATCH cannot be activated while defending — skip it entirely
+          if (c.faces.includes('END_MATCH')) continue;
           // mandatory attempt: any card may be burned
           acts.push({ type: 'play', card_id: c.id, face: c.faces[0], counters: false });
         }

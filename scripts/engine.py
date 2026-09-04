@@ -285,6 +285,9 @@ class Game:
                     acts.append({"type": "play", "card_id": c.id, "face": f,
                                  "counters": valid})
                 else:
+                    # L35: END_MATCH cannot be activated while defending
+                    if c.faces[0] == "END_MATCH":
+                        continue
                     # mandatory attempt: any card may be burned
                     acts.append({"type": "play", "card_id": c.id,
                                  "face": c.faces[0], "counters": False})

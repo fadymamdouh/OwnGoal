@@ -1,4 +1,8 @@
-# ⚽ OWN GOAL — أون جول
+<p align="center">
+  <img src="web/logo.jpeg" alt="أون جول — OWN GOAL" width="320">
+</p>
+
+# OWN GOAL — أون جول
 
 **A 60-card football card game in Egyptian Arabic.** Two modes, 1v1 or 2v2, first to
 3 goals. Playable as a single offline HTML file, as a static site on GitHub Pages

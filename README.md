@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="web/logo.jpeg" alt="أون جول — OWN GOAL" width="320">
+  <img src="web/logo.png" alt="أون جول — OWN GOAL" width="320">
 </p>
 
 # OWN GOAL — أون جول

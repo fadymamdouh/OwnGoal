@@ -238,10 +238,16 @@ input::placeholder{color:#55525f}
 .pitch-post.right::after{right:4px;transform:scaleX(-1)}
 .poss-bar{position:absolute;top:0;left:0;height:3px;border-radius:0 2px 2px 0;
   background:var(--attack-glow);transition:width .6s cubic-bezier(.4,0,.2,1);z-index:5}
-.pitch-ball{position:absolute;width:14px;height:14px;border-radius:50%;
-  background:radial-gradient(circle at 38% 38%,#fff,#ccc);
-  box-shadow:0 2px 8px #000a;z-index:6;
+/* ground trail — fading dashed polyline */
+.pitch-trail{position:absolute;inset:0;z-index:5;pointer-events:none;overflow:visible}
+.pitch-trail polyline{
+  fill:none;stroke:#ffffff55;stroke-width:1.5;
+  stroke-dasharray:3 4;stroke-linecap:round;stroke-linejoin:round}
+
+.pitch-ball{position:absolute;width:16px;height:16px;z-index:6;
+  filter:drop-shadow(0 2px 4px #0009);
   transition:left .45s cubic-bezier(.4,0,.2,1),top .45s cubic-bezier(.4,0,.2,1)}
+.pitch-ball svg{width:100%;height:100%;overflow:visible}
 .pitch-ball.shooting{animation:shot-arc .55s cubic-bezier(.2,1,.4,1) forwards}
 .pitch-ball.miss   {animation:shot-miss .6s cubic-bezier(.2,1,.4,1) forwards}
 .pitch-ball.goal-in{animation:goal-in  .45s cubic-bezier(.4,0,.6,1) forwards}
@@ -621,7 +627,37 @@ html::-webkit-scrollbar-thumb{background:#2a2140;border-radius:3px}
         <div class="pitch-post right"></div>
         <div class="net-ripple left"  id="net-left"></div>
         <div class="net-ripple right" id="net-right"></div>
-        <div class="pitch-ball"  id="pitch-ball"></div>
+        <!-- trail line drawn behind the ball -->
+        <svg class="pitch-trail" id="pitch-trail" xmlns="http://www.w3.org/2000/svg">
+          <polyline id="trail-line" points=""/>
+        </svg>
+        <!-- football SVG ball -->
+        <div class="pitch-ball" id="pitch-ball">
+          <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+            <!-- white sphere -->
+            <circle cx="10" cy="10" r="9" fill="#f5f5f5" stroke="#ccc" stroke-width=".4"/>
+            <!-- subtle shading -->
+            <ellipse cx="7" cy="7" rx="4.5" ry="3" fill="#fff" opacity=".5"/>
+            <!-- 5-patch pattern (simplified classic football) -->
+            <!-- centre pentagon -->
+            <polygon points="10,5.5 12.8,7.6 11.8,10.8 8.2,10.8 7.2,7.6"
+                     fill="#111" stroke="#333" stroke-width=".3"/>
+            <!-- top-left patch -->
+            <polygon points="5.5,4 8.2,4.8 7.2,7.6 4.2,7"
+                     fill="#111" stroke="#333" stroke-width=".3"/>
+            <!-- top-right patch -->
+            <polygon points="14.5,4 15.8,7 12.8,7.6 11.8,5.2"
+                     fill="#111" stroke="#333" stroke-width=".3"/>
+            <!-- bottom-left patch -->
+            <polygon points="4.2,13 8.2,10.8 8.6,13.8 6,15.2"
+                     fill="#111" stroke="#333" stroke-width=".3"/>
+            <!-- bottom-right patch -->
+            <polygon points="15.8,13 11.8,10.8 11.4,13.8 14,15.2"
+                     fill="#111" stroke="#333" stroke-width=".3"/>
+            <!-- topspin rotation hint — subtle arc -->
+            <circle cx="10" cy="10" r="9" fill="none" stroke="#fff" stroke-width=".3" opacity=".3"/>
+          </svg>
+        </div>
         <div class="pitch-status" id="pitch-status"></div>
       </div>
       <div class="hist" id="hist"></div>
@@ -2020,11 +2056,12 @@ function _unlockAudio() {
      goal overturned   → "اتلغى الهدف ❌"
      counter-attack    → "مرتدة 🔥"                                        */
 
-const PITCH_BALL_SIZE = 14;  // px, matches CSS
+const PITCH_BALL_SIZE = 16;  // px, matches updated CSS
 
 function _pitch() {
   return {
     ball:   document.getElementById('pitch-ball'),
+    trail:  document.getElementById('trail-line'),
     status: document.getElementById('pitch-status'),
     bar:    document.getElementById('poss-bar'),
     netL:   document.getElementById('net-left'),
@@ -2033,14 +2070,57 @@ function _pitch() {
   };
 }
 
-/* Move the ball to a fractional position (0=left post, 1=right post). */
-function pitchMoveBall(xFrac, yFrac = 0.5) {
+/* Trail history — array of {x,y} screen coords. Capped to 12 points.
+   Cleared on possession change so the line only shows the current run. */
+let _trailPts = [];
+const TRAIL_MAX = 12;
+
+function _renderTrail() {
+  const { trail } = _pitch();
+  if (!trail) return;
+  if (_trailPts.length < 2) { trail.setAttribute('points', ''); return; }
+  // Replace the single polyline with multiple short segments, each fading
+  // from transparent (oldest) to white (newest). We do this by swapping in
+  // sibling <line> elements managed here.
+  const svg = trail.closest('svg') || trail.parentElement;
+  // remove old trail segments
+  svg.querySelectorAll('.trail-seg').forEach(el => el.remove());
+  const n = _trailPts.length;
+  for (let i = 1; i < n; i++) {
+    const a = _trailPts[i - 1], b = _trailPts[i];
+    const opacity = ((i / (n - 1)) * 0.55).toFixed(2);   // 0 -> 0.55
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', a.x); line.setAttribute('y1', a.y);
+    line.setAttribute('x2', b.x); line.setAttribute('y2', b.y);
+    line.setAttribute('stroke', '#fff');
+    line.setAttribute('stroke-width', '1.8');
+    line.setAttribute('stroke-linecap', 'round');
+    line.setAttribute('stroke-opacity', opacity);
+    line.setAttribute('stroke-dasharray', '3 3');
+    line.classList.add('trail-seg');
+    svg.insertBefore(line, trail);   // behind the polyline placeholder
+  }
+}
+
+/* Move the ball to a fractional position (0=left post, 1=right post).
+   Every move appends a trail point. */
+function pitchMoveBall(xFrac, yFrac = 0.5, clearTrail = false) {
   const { ball, pitch } = _pitch();
   if (!ball || !pitch) return;
   const W = pitch.clientWidth  || 300;
   const H = pitch.clientHeight || 120;
-  ball.style.left = (xFrac  * W - PITCH_BALL_SIZE / 2) + 'px';
-  ball.style.top  = (yFrac  * H - PITCH_BALL_SIZE / 2) + 'px';
+  const cx = xFrac * W;
+  const cy = yFrac * H;
+  ball.style.left = (cx - PITCH_BALL_SIZE / 2) + 'px';
+  ball.style.top  = (cy - PITCH_BALL_SIZE / 2) + 'px';
+
+  if (clearTrail) {
+    _trailPts = [];
+  } else {
+    _trailPts.push({ x: Math.round(cx), y: Math.round(cy) });
+    if (_trailPts.length > TRAIL_MAX) _trailPts.shift();
+  }
+  _renderTrail();
 }
 
 function pitchStatus(text, cls = '') {
@@ -2113,7 +2193,6 @@ function pitchEvent(e, v) {
 
     case 'defense_played': {
       if (!e.stopped) {
-        // card played but did not stop — ball keeps moving forward
         const atk = v.possession === me ? 0.72 : 0.28;
         pitchMoveBall(atk, 0.38 + Math.random() * 0.24);
         const seatName = (v.seats[v.possession] || {}).name || '';
@@ -2155,14 +2234,13 @@ function pitchEvent(e, v) {
     }
 
     case 'counter_attack': {
-      // turnover with cards in hand — ball zips back
-      pitchMoveBall(v.possession === me ? 0.35 : 0.65, 0.5);
+      pitchMoveBall(v.possession === me ? 0.35 : 0.65, 0.5, true);   // clear trail
       pitchStatus('مرتدة 🔥', 'danger');
       break;
     }
 
     case 'possession_conceded': {
-      pitchMoveBall(0.5, 0.5);
+      pitchMoveBall(0.5, 0.5, true);   // clear trail on turnover
       pitchStatus('استحواذ');
       const bar = _pitch().bar;
       if (bar) { bar.style.width = '50%'; bar.style.background = 'var(--muted)'; }
@@ -2432,7 +2510,7 @@ function resetTable() {
   table = []; feed = [];
   lastEvent = 0; drawnCount = 0; cardNo = 0;
   // pitch reset happens in render() once DOM is in the page
-  setTimeout(() => { pitchMoveBall(0.5, 0.5); pitchStatus(''); }, 0);
+  setTimeout(() => { pitchMoveBall(0.5, 0.5, true); pitchStatus(''); }, 0);
   sweepTable = false; lastPossession = null;
   prevHand = []; facedown = []; busyDeck = false; picks = [];
   $('fan').innerHTML = '';

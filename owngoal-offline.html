@@ -222,7 +222,57 @@ input::placeholder{color:#55525f}
 .tablehint{position:absolute;top:44%;left:0;right:0;text-align:center;
   font-size:10px;color:#5c7a68;font-weight:700;z-index:1}
 
+/* ---------- pitch motion layer ---------- */
+.pitch{position:absolute;inset:0;bottom:74px;overflow:hidden;pointer-events:none;z-index:1}
+.pitch-status{position:absolute;bottom:6px;left:0;right:0;text-align:center;
+  font-family:'Rakkas',cursive;font-size:13px;color:#ffffffcc;
+  transition:opacity .3s,color .3s;z-index:4;letter-spacing:.04em;text-shadow:0 1px 6px #0008}
+.pitch-status.danger{color:#ff6b6b;text-shadow:0 0 12px #ff000088}
+.pitch-status.goal-flash{color:#f1c40f;text-shadow:0 0 18px #f1c40f88}
+.pitch-post{position:absolute;top:28%;bottom:28%;width:4px;background:#ffffff22;border-radius:2px}
+.pitch-post.left{left:8px}
+.pitch-post.right{right:8px}
+.pitch-post::after{content:'';position:absolute;top:0;bottom:0;width:18px;
+  background:repeating-linear-gradient(90deg,transparent,transparent 3px,#ffffff0a 3px,#ffffff0a 4px)}
+.pitch-post.left::after{left:4px}
+.pitch-post.right::after{right:4px;transform:scaleX(-1)}
+.poss-bar{position:absolute;top:0;left:0;height:3px;border-radius:0 2px 2px 0;
+  background:var(--attack-glow);transition:width .6s cubic-bezier(.4,0,.2,1);z-index:5}
+.pitch-ball{position:absolute;width:14px;height:14px;border-radius:50%;
+  background:radial-gradient(circle at 38% 38%,#fff,#ccc);
+  box-shadow:0 2px 8px #000a;z-index:6;
+  transition:left .45s cubic-bezier(.4,0,.2,1),top .45s cubic-bezier(.4,0,.2,1)}
+.pitch-ball.shooting{animation:shot-arc .55s cubic-bezier(.2,1,.4,1) forwards}
+.pitch-ball.miss   {animation:shot-miss .6s cubic-bezier(.2,1,.4,1) forwards}
+.pitch-ball.goal-in{animation:goal-in  .45s cubic-bezier(.4,0,.6,1) forwards}
+@keyframes shot-arc{
+  0%  {transform:translate(0,0) scale(1)}
+  45% {transform:translate(var(--sx),calc(var(--sy)*.4)) scale(1.18)}
+  100%{transform:translate(var(--sx),var(--sy)) scale(.85)}}
+@keyframes shot-miss{
+  0%  {transform:translate(0,0) scale(1)}
+  55% {transform:translate(var(--sx),calc(var(--sy)*.2)) scale(1.25)}
+  80% {transform:translate(calc(var(--sx)*1.4),calc(var(--sy)*1.2)) scale(.9) rotate(18deg)}
+  100%{transform:translate(calc(var(--sx)*1.5),calc(var(--sy)*1.3)) scale(.7)}}
+@keyframes goal-in{
+  0%  {transform:translate(0,0) scale(1)}
+  65% {transform:translate(var(--sx),var(--sy)) scale(1.3)}
+  100%{transform:translate(var(--sx),var(--sy)) scale(.5);opacity:0}}
+.net-ripple{position:absolute;top:28%;bottom:28%;width:18px;z-index:5;opacity:0}
+.net-ripple.left{left:8px}
+.net-ripple.right{right:8px}
+.net-ripple.active{animation:net-shake .55s ease forwards}
+@keyframes net-shake{
+  0%  {opacity:.9;transform:scaleX(1)}
+  25% {transform:scaleX(1.5) scaleY(1.12)}
+  55% {transform:scaleX(.85)}
+  80% {transform:scaleX(1.2)}
+  100%{opacity:0;transform:scaleX(1)}}
+.net-ripple.active::before{content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(90deg,#f1c40f55,#f1c40f55 2px,transparent 2px,transparent 5px)}
+
 /* ---------- deck + discard ---------- */
+
 .deckpile,.discpile{position:absolute;bottom:9px;width:44px;height:60px;z-index:3}
 .deckpile{inset-inline-end:12px}
 .discpile{inset-inline-start:12px}
@@ -565,6 +615,15 @@ html::-webkit-scrollbar-thumb{background:#2a2140;border-radius:3px}
     </div>
 
     <div class="table" id="table">
+      <div class="pitch" id="pitch">
+        <div class="poss-bar"    id="poss-bar"></div>
+        <div class="pitch-post left"></div>
+        <div class="pitch-post right"></div>
+        <div class="net-ripple left"  id="net-left"></div>
+        <div class="net-ripple right" id="net-right"></div>
+        <div class="pitch-ball"  id="pitch-ball"></div>
+        <div class="pitch-status" id="pitch-status"></div>
+      </div>
       <div class="hist" id="hist"></div>
       <div class="tablehint" id="tablehint">الطرابيزة فاضية</div>
       <div class="discpile">
@@ -1945,6 +2004,184 @@ function _unlockAudio() {
   _startIntro();
 }
 
+/* ---------------------------------------------------------------- pitch tracker
+   Sofascore-style 2D pitch that reacts to every game event in real time.
+
+   The pitch is a rectangle. Left post = attacker's goal (me scoring),
+   right post = defender's goal (they score on me).  This flips each
+   possession change so the ball always moves toward the correct goal.
+
+   Ball X position: 12–88% of pitch width, mapped to possession side.
+   Status text mirrors the Sofascore pattern:
+     possession start  → "هجوم [team]"
+     shot card played  → "هجوم خطير ⚡"
+     stopped           → "وقفت الهجمة"
+     goal scored       → "جـــول ⚽"
+     goal overturned   → "اتلغى الهدف ❌"
+     counter-attack    → "مرتدة 🔥"                                        */
+
+const PITCH_BALL_SIZE = 14;  // px, matches CSS
+
+function _pitch() {
+  return {
+    ball:   document.getElementById('pitch-ball'),
+    status: document.getElementById('pitch-status'),
+    bar:    document.getElementById('poss-bar'),
+    netL:   document.getElementById('net-left'),
+    netR:   document.getElementById('net-right'),
+    pitch:  document.getElementById('pitch'),
+  };
+}
+
+/* Move the ball to a fractional position (0=left post, 1=right post). */
+function pitchMoveBall(xFrac, yFrac = 0.5) {
+  const { ball, pitch } = _pitch();
+  if (!ball || !pitch) return;
+  const W = pitch.clientWidth  || 300;
+  const H = pitch.clientHeight || 120;
+  ball.style.left = (xFrac  * W - PITCH_BALL_SIZE / 2) + 'px';
+  ball.style.top  = (yFrac  * H - PITCH_BALL_SIZE / 2) + 'px';
+}
+
+function pitchStatus(text, cls = '') {
+  const { status } = _pitch();
+  if (!status) return;
+  status.className = 'pitch-status' + (cls ? ' ' + cls : '');
+  status.textContent = text;
+}
+
+/* Animate a shot toward the goal (goalXFrac: 0.08 = left post, 0.92 = right). */
+function pitchShot(goalXFrac, goalYFrac, scored) {
+  const { ball, pitch } = _pitch();
+  if (!ball || !pitch) return;
+  const W = pitch.clientWidth  || 300;
+  const H = pitch.clientHeight || 120;
+  const curLeft = parseFloat(ball.style.left) + PITCH_BALL_SIZE / 2;
+  const curTop  = parseFloat(ball.style.top)  + PITCH_BALL_SIZE / 2;
+  const dstX = goalXFrac * W;
+  const dstY = goalYFrac * H;
+  // apply CSS vars for the keyframe
+  ball.style.setProperty('--sx', (dstX - curLeft) + 'px');
+  ball.style.setProperty('--sy', (dstY - curTop)  + 'px');
+  // remove any previous animation class (force reflow)
+  ball.classList.remove('shooting', 'miss', 'goal-in');
+  void ball.offsetWidth;
+  ball.classList.add(scored ? 'goal-in' : 'miss');
+  // after animation: move to goal or reset to centre
+  const cls = scored ? 'goal-in' : 'miss';
+  setTimeout(() => {
+    ball.classList.remove(cls);
+    pitchMoveBall(scored ? goalXFrac : 0.5, 0.5);
+  }, scored ? 450 : 620);
+}
+
+/* Net ripple on goal */
+function pitchNetRipple(goalSide) {
+  const { netL, netR } = _pitch();
+  const net = goalSide === 'left' ? netL : netR;
+  if (!net) return;
+  net.classList.remove('active');
+  void net.offsetWidth;
+  net.classList.add('active');
+  setTimeout(() => net.classList.remove('active'), 600);
+}
+
+/* Main reactor — called from runAnimations() for every new event. */
+let _pitchPossession = 0;   // 0=me, 1=opponent (flips on turnover)
+
+function pitchEvent(e, v) {
+  if (!v) return;
+  const myTeam = v.you % 2;
+  const me     = v.you;
+
+  switch (e.kind) {
+
+    case 'attack_played': {
+      // ball moves toward the defending goal
+      const atk = e.seat === me ? 'mine' : 'theirs';
+      // attacker is on the left of the pitch (toward right post = opponent's goal)
+      const ballX = e.seat === me ? 0.62 : 0.38;
+      pitchMoveBall(ballX, 0.42 + Math.random() * 0.16);
+      // possession bar
+      const barW = e.seat === me ? '60%' : '40%';
+      const bar  = _pitch().bar;
+      if (bar) { bar.style.width = barW; bar.style.background = e.seat === me ? 'var(--attack-glow)' : 'var(--defense-glow)'; }
+      const seatName = (v.seats[e.seat] || {}).name || '';
+      pitchStatus(`هجوم ${seatName}`);
+      break;
+    }
+
+    case 'defense_played': {
+      if (!e.stopped) {
+        // card played but did not stop — ball keeps moving forward
+        const atk = v.possession === me ? 0.72 : 0.28;
+        pitchMoveBall(atk, 0.38 + Math.random() * 0.24);
+        const seatName = (v.seats[v.possession] || {}).name || '';
+        pitchStatus(`هجوم خطير ⚡`, 'danger');
+      } else {
+        // possession stopped — ball bounces back to centre
+        pitchMoveBall(0.5, 0.5);
+        pitchStatus('وقفت الهجمة');
+        const bar = _pitch().bar;
+        if (bar) { bar.style.width = '50%'; bar.style.background = 'var(--muted)'; }
+      }
+      break;
+    }
+
+    case 'goal': {
+      // attacker scored — animate shot into the defender's goal
+      const scorerIsMe = (v.seats[e.scorer] || {}).team === myTeam;
+      const goalX = scorerIsMe ? 0.92 : 0.08;   // right=opponent's goal, left=my goal
+      pitchMoveBall(scorerIsMe ? 0.72 : 0.28, 0.5);
+      pitchShot(goalX, 0.5, true);
+      pitchNetRipple(scorerIsMe ? 'right' : 'left');
+      pitchStatus('جـــول ⚽', 'goal-flash');
+      const bar = _pitch().bar;
+      if (bar) { bar.style.width = scorerIsMe ? '80%' : '20%'; bar.style.background = scorerIsMe ? 'var(--attack-glow)' : 'var(--attack)'; }
+      break;
+    }
+
+    case 'goal_overturned': {
+      pitchMoveBall(0.5, 0.5);
+      pitchStatus('اتلغى الهدف ❌');
+      const bar = _pitch().bar;
+      if (bar) { bar.style.width = '50%'; bar.style.background = 'var(--muted)'; }
+      break;
+    }
+
+    case 'var': {
+      pitchStatus(e.overturned ? 'VAR — اتلغى ✓' : 'VAR — اتأكد ✗');
+      break;
+    }
+
+    case 'counter_attack': {
+      // turnover with cards in hand — ball zips back
+      pitchMoveBall(v.possession === me ? 0.35 : 0.65, 0.5);
+      pitchStatus('مرتدة 🔥', 'danger');
+      break;
+    }
+
+    case 'possession_conceded': {
+      pitchMoveBall(0.5, 0.5);
+      pitchStatus('استحواذ');
+      const bar = _pitch().bar;
+      if (bar) { bar.style.width = '50%'; bar.style.background = 'var(--muted)'; }
+      break;
+    }
+
+    case 'offside_overturned': {
+      pitchStatus('التسلل اتلغى');
+      break;
+    }
+
+    case 'match_over': {
+      pitchStatus(v.over && v.score ? `${v.score[0]} — ${v.score[1]} نهاية الماتش` : 'نهاية الماتش');
+      pitchMoveBall(0.5, 0.5);
+      break;
+    }
+  }
+}
+
 /* ---------------------------------------------------------------- animations
 
    showCoin(flip, call, label, sub)
@@ -2116,6 +2353,7 @@ function runAnimations(evs) {
   if (e.kind === 'attack_played') {
       sndCard(e.face);
     }
+    pitchEvent(e, view);
   if (e.kind === 'var') {
       const rev = e.reviewing || '';
       const ctx = VAR_CONTEXT[rev] || VAR_CONTEXT[''];
@@ -2123,7 +2361,13 @@ function runAnimations(evs) {
       const sub = ctx.subject;
       showCoin(e.flip, label, sub, ctx);
     }
-    if (e.kind === 'goal') {
+    if (e.kind === 'defense_played' || e.kind === 'possession_conceded' ||
+        e.kind === 'counter_attack'   || e.kind === 'goal_overturned' ||
+        e.kind === 'var'              || e.kind === 'offside_overturned' ||
+        e.kind === 'match_over') {
+      pitchEvent(e, view);
+    }
+  if (e.kind === 'goal') {
       const myTeam = view?.you % 2;
       const scorerTeam = view ? view.seats[e.scorer]?.team : -1;
       if (scorerTeam === myTeam) {
@@ -2187,6 +2431,8 @@ function watchPossession(v) {
 function resetTable() {
   table = []; feed = [];
   lastEvent = 0; drawnCount = 0; cardNo = 0;
+  // pitch reset happens in render() once DOM is in the page
+  setTimeout(() => { pitchMoveBall(0.5, 0.5); pitchStatus(''); }, 0);
   sweepTable = false; lastPossession = null;
   prevHand = []; facedown = []; busyDeck = false; picks = [];
   $('fan').innerHTML = '';

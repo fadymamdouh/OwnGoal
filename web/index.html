@@ -541,6 +541,7 @@ html::-webkit-scrollbar-thumb{background:#2a2140;border-radius:3px}
       <button class="go ghost" id="join">دخول</button>
     </div>
     <div class="hint">أول واحد يوصل 3 أهداف يكسب.<br>الكروت المقسومة ليها وشين — هجوم ودفاع.</div>
+    <div id="rules-btn-slot" style="margin-top:14px;text-align:center"></div>
   </div>
 
   <div id="waiting" class="hide">
@@ -628,6 +629,7 @@ html::-webkit-scrollbar-thumb{background:#2a2140;border-radius:3px}
 <script type="module">
 import {CARDS, ICONS, FAMILY, GLOW} from './cards.js';
 import {Room} from './net.js';
+import {init as initOnboarding, createRulesButton} from './onboarding.js';
 
 const $ = id => document.getElementById(id);
 let room = null, view = null, fmt = 'bot', mode = 'LUCK', picked = null;
@@ -1924,6 +1926,10 @@ if (last && last !== 'BOT') {
   $('joincode').value = last;
   $('join').textContent = `ارجع لأوضة ${last}`;
 }
+
+/* ─── Onboarding carousel + rules button ─── */
+initOnboarding();
+document.getElementById('rules-btn-slot').appendChild(createRulesButton());
 </script>
 </body>
 </html>

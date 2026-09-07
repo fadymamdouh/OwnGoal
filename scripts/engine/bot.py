@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .rules_loader import DEFENSE_FACES, POSSESSION, SHOT_STAGE
+from .rules_loader import ACTIONS, DEFENSE_FACES, PHASES, POSSESSION, SHOT_STAGE
 
 if TYPE_CHECKING:
     from .game import Game
@@ -26,24 +26,24 @@ def bot_action(game: Game, seat_i: int, policy: str = "SHOOTER") -> dict | None:
         return None
     kinds = {a["type"] for a in acts}
 
-    if "draw" in kinds:
-        return {"type": "draw", "n": 1}
+    if ACTIONS.DRAW in kinds:
+        return {"type": ACTIONS.DRAW, "n": 1}
 
-    if game.phase == "react_own_goal":
+    if game.phase == PHASES.REACT_OWN_GOAL:
         og = [a for a in acts if a.get("face") == "OWN_GOAL"]
-        return og[0] if og else {"type": "pass"}
+        return og[0] if og else {"type": ACTIONS.PASS}
 
-    if game.phase == "react_var":
+    if game.phase == PHASES.REACT_VAR:
         v = [a for a in acts if a.get("face") == "VAR"]
-        return v[0] if v else {"type": "pass"}
+        return v[0] if v else {"type": ACTIONS.PASS}
 
     # Picking cards to swap away. A human dumps their least useful cards, so the
     # bot does the same: keep shots and split cards, spend spares first.
-    if game.phase == "react_var_offside":
+    if game.phase == PHASES.REACT_VAR_OFFSIDE:
         va = next((a for a in acts if a.get("face") == "VAR"), None)
-        return va or {"type": "pass"}
+        return va or {"type": ACTIONS.PASS}
 
-    if game.phase == "reshuffle_pick":
+    if game.phase == PHASES.RESHUFFLE_PICK:
         hand = {c.id: c for c in game.seats[seat_i].hand}
 
         def worth(a: dict) -> int:
@@ -62,7 +62,7 @@ def bot_action(game: Game, seat_i: int, policy: str = "SHOOTER") -> dict | None:
 
         return sorted(acts, key=worth)[0]
 
-    if game.phase == "defense":
+    if game.phase == PHASES.DEFENSE:
         good = [a for a in acts if a.get("counters")]
         if good:
             good.sort(key=lambda a: POSSESSION.get(a["face"], "neutral") != "defender")
@@ -70,7 +70,7 @@ def bot_action(game: Game, seat_i: int, policy: str = "SHOOTER") -> dict | None:
         junk = sorted(acts, key=lambda a: a["face"] in PRIORITY)
         return junk[0]
 
-    plays = [a for a in acts if a["type"] == "play"]
+    plays = [a for a in acts if a["type"] == ACTIONS.PLAY]
     if not plays:
         em = [a for a in acts if a.get("face") == "END_MATCH"]
         if em and game.score[game.team(seat_i)] > game.score[1 - game.team(seat_i)]:

@@ -29,8 +29,6 @@ from .phases import (
 from .rng import build_deck, make_rng
 from .rules_loader import (
     ACTIONS,
-    ATTACK_FACES,
-    CARDS,
     COUNTERS,
     DEFENSE_FACES,
     EVENTS,
@@ -71,7 +69,7 @@ class Game:
         self.match_type = match_type
         self.rng = make_rng(seed)
         self.n: int = 2 if match_type == "ONE_V_ONE" else 4
-        names = names or [f"P{i+1}" for i in range(self.n)]
+        names = names or [f"P{i + 1}" for i in range(self.n)]
         self.seats: list[Seat] = [Seat(i, names[i]) for i in range(self.n)]
         self.score: list[int] = [0, 0]
         self.log: list[dict] = []
@@ -200,8 +198,7 @@ class Game:
             "hand": [c.as_dict() for c in me.hand],
             "flags": {"fouled": me.fouled, "goal_unlocked": me.goal_unlocked},
             "seats": [
-                {"index": s.index, "name": s.name, "team": self.team(s.index),
-                 "cards": len(s.hand)}
+                {"index": s.index, "name": s.name, "team": self.team(s.index), "cards": len(s.hand)}
                 for s in self.seats
             ],
             "legal": self.legal_actions(seat_i),
@@ -237,11 +234,18 @@ class Game:
                         acts.append({"type": ACTIONS.SPECIAL, "card_id": c.id, "face": f})
                     else:
                         # swap with the deck, or in 2v2 trade with your partner
-                        acts.append({"type": ACTIONS.SPECIAL, "card_id": c.id,
-                                     "face": f, "swap": "deck"})
+                        acts.append(
+                            {"type": ACTIONS.SPECIAL, "card_id": c.id, "face": f, "swap": "deck"}
+                        )
                         if self.n > 2:
-                            acts.append({"type": ACTIONS.SPECIAL, "card_id": c.id,
-                                         "face": f, "swap": "partner"})
+                            acts.append(
+                                {
+                                    "type": ACTIONS.SPECIAL,
+                                    "card_id": c.id,
+                                    "face": f,
+                                    "swap": "partner",
+                                }
+                            )
                     break
             if not any(a["type"] == ACTIONS.PLAY for a in acts):
                 acts.append({"type": ACTIONS.CONCEDE_POSSESSION})
@@ -252,21 +256,29 @@ class Game:
             for c in me.hand:
                 # VAR answers a Goal or a Penalty as a review — pure luck flip
                 if "VAR" in c.faces and target in COUNTERS.get("VAR", set()):
-                    acts.append({"type": ACTIONS.PLAY, "card_id": c.id,
-                                 "face": "VAR", "counters": True})
+                    acts.append(
+                        {"type": ACTIONS.PLAY, "card_id": c.id, "face": "VAR", "counters": True}
+                    )
                     continue
                 f = c.face_of_class("defense") or ("CHAIN" if "CHAIN" in c.faces else None)
                 if f and f in DEFENSE_FACES:
                     valid = target in COUNTERS.get(f, set())
-                    acts.append({"type": ACTIONS.PLAY, "card_id": c.id, "face": f,
-                                 "counters": valid})
+                    acts.append(
+                        {"type": ACTIONS.PLAY, "card_id": c.id, "face": f, "counters": valid}
+                    )
                 else:
                     # L35: END_MATCH cannot be activated while defending
                     if c.faces[0] == "END_MATCH":
                         continue
                     # mandatory attempt: any card may be burned
-                    acts.append({"type": ACTIONS.PLAY, "card_id": c.id,
-                                 "face": c.faces[0], "counters": False})
+                    acts.append(
+                        {
+                            "type": ACTIONS.PLAY,
+                            "card_id": c.id,
+                            "face": c.faces[0],
+                            "counters": False,
+                        }
+                    )
             return acts
 
         # L33: each player picks the cards leaving their OWN hand
@@ -281,7 +293,14 @@ class Game:
         if self.phase == PHASES.REACT_VAR_OFFSIDE and seat_i == self.pending["seat"]:
             for c in me.hand:
                 if "VAR" in c.faces:
-                    acts.append({"type": ACTIONS.PLAY, "card_id": c.id, "face": "VAR", "counters": True})
+                    acts.append(
+                        {
+                            "type": ACTIONS.PLAY,
+                            "card_id": c.id,
+                            "face": "VAR",
+                            "counters": True,
+                        }
+                    )
             acts.append({"type": ACTIONS.PASS})
             return acts
 
@@ -354,8 +373,7 @@ class Game:
                 self.defender = self._next(self.possession)
                 self._emit(EVENTS.COUNTER_ATTACK, seat=self.possession, cards=self.owed)
                 self.phase = PHASES.ATTACK
-                if not self._playable_attack_faces(
-                        self.seats[self.possession], self.owed <= 1):
+                if not self._playable_attack_faces(self.seats[self.possession], self.owed <= 1):
                     self._concede()
                 return
         elif outcome == "attacker":
@@ -379,14 +397,20 @@ class Game:
     def _score(self, scorer: int, face: str, conceder: int | None = None) -> None:
         conceder = self._next(scorer) if conceder is None else conceder
         self.score[self.team(scorer)] += 1
-        ev = self._emit(EVENTS.GOAL, scorer=scorer, face=face, conceder=conceder,
-                        score=list(self.score))
+        ev = self._emit(
+            EVENTS.GOAL, scorer=scorer, face=face, conceder=conceder, score=list(self.score)
+        )
         victim = self._next_of_team(self._next(scorer), self.team(conceder))
         reviewed = self.no_var_review
         self.no_var_review = False
         if not reviewed and any("VAR" in c.faces for c in self.seats[victim].hand):
-            self.pending = {"seat": victim, "reason": "goal", "event": ev["id"],
-                            "scorer": scorer, "conceder": conceder}
+            self.pending = {
+                "seat": victim,
+                "reason": "goal",
+                "event": ev["id"],
+                "scorer": scorer,
+                "conceder": conceder,
+            }
             self.phase = PHASES.REACT_VAR
             return
         self._after_goal(conceder)
@@ -396,11 +420,9 @@ class Game:
         for t in (0, 1):
             if self.score[t] >= GOALS_TO_WIN:
                 self.over, self.winner, self.phase = True, t, PHASES.OVER
-                self._emit(EVENTS.MATCH_OVER, winner=t, reason="goals",
-                           score=list(self.score))
+                self._emit(EVENTS.MATCH_OVER, winner=t, reason="goals", score=list(self.score))
                 return
-        self.possession = self._next_of_team(self._next(self.defender),
-                                             self.team(conceder))
+        self.possession = self._next_of_team(self._next(self.defender), self.team(conceder))
         self.phase = self._open_attack()
 
     # ── misc helpers ────────────────────────────────────────────────
@@ -454,9 +476,12 @@ class Game:
             "taken": {},
         }
         self.phase = PHASES.RESHUFFLE_PICK
-        self._emit(EVENTS.RESHUFFLE_OPENED, seat=seat_i,
-                   swap=self.pending["swap"],
-                   partner=partner if with_partner else None)
+        self._emit(
+            EVENTS.RESHUFFLE_OPENED,
+            seat=seat_i,
+            swap=self.pending["swap"],
+            partner=partner if with_partner else None,
+        )
         self._maybe_finish_picking()
 
     def _maybe_finish_picking(self) -> None:
@@ -473,8 +498,7 @@ class Game:
             seat.hand.remove(c)
 
         # partner trade: hand over so the partner picks from their own hand
-        if (p["swap"] == "partner" and p["partner"] is not None
-                and p["partner"] not in p["taken"]):
+        if p["swap"] == "partner" and p["partner"] is not None and p["partner"] not in p["taken"]:
             p["seat"] = p["partner"]
             p["chosen"] = []
             self._emit(EVENTS.RESHUFFLE_TURN, seat=p["partner"])
@@ -485,23 +509,27 @@ class Game:
             a, b = p["owner"], p["partner"]
             self.seats[a].hand.extend(p["taken"][b])
             self.seats[b].hand.extend(p["taken"][a])
-            self._emit(EVENTS.RESHUFFLED, seat=a, swap="partner", partner=b,
-                       n=len(p["taken"][a]))
+            self._emit(EVENTS.RESHUFFLED, seat=a, swap="partner", partner=b, n=len(p["taken"][a]))
         else:
             self.discard.extend(p["taken"][p["owner"]])
-            self._emit(EVENTS.RESHUFFLED, seat=p["owner"], swap="deck",
-                       n=len(p["taken"][p["owner"]]))
+            self._emit(
+                EVENTS.RESHUFFLED, seat=p["owner"], swap="deck", n=len(p["taken"][p["owner"]])
+            )
 
         self.pending = None
         self._refill_all()
         self.phase = PHASES.ATTACK
-        if not self._playable_attack_faces(
-                self.seats[self.possession], self.owed <= 1):
+        if not self._playable_attack_faces(self.seats[self.possession], self.owed <= 1):
             self._concede()
 
     def _end_match(self, seat_i: int) -> None:
         mine, theirs = self.team(seat_i), 1 - self.team(seat_i)
         self.winner = mine if self.score[mine] > self.score[theirs] else theirs
         self.over, self.phase = True, PHASES.OVER
-        self._emit(EVENTS.MATCH_OVER, winner=self.winner, reason="end_match",
-                   played_by=seat_i, score=list(self.score))
+        self._emit(
+            EVENTS.MATCH_OVER,
+            winner=self.winner,
+            reason="end_match",
+            played_by=seat_i,
+            score=list(self.score),
+        )

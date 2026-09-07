@@ -288,7 +288,8 @@
     {
       "defense": "BLOCK_SAVE",
       "stops": [
-        "SUPER_SHOT"
+        "SUPER_SHOT",
+        "SHOT_GOAL"
       ],
       "note": "The ONLY answer to Super Shot in the entire game. ACCEPTED_BY_DESIGNER: Super Shot is meant to be a rare finisher, not a duel. Only 2 copies exist, and because Block Save shares its physical card, an attacker holding one Super Shot leaves just one possible save in the deck — the defender's real chance of holding it is nearer 7% than 13%."
     },
@@ -340,7 +341,9 @@
       "stops": [
         "GOAL",
         "PENALTY",
-        "OFFSIDE"
+        "OFFSIDE",
+        "SHOT_GOAL",
+        "SUPER_SHOT"
       ],
       "note": "Resolves as a coin-flip review, not a normal duel. Reviews a Goal card, a Penalty, or an Offside call against you. See resolution.var."
     },
@@ -390,7 +393,7 @@
     },
     "own_goal": "Played as a defense against a shot. It does not merely stop the attack, it converts it: the point is scored FOR the side that played Own Goal. Possession then returns to the ATTACKER, who restarts play — exactly like a real side kicking off after scoring against itself. One copy in the deck. Against a Penalty it behaves identically: the penalty converts and the fouling side takes the point. In 2v2 it needs no special restart rule: the rotation naturally resumes with the conceding side.",
     "var": {
-      "reviews": "the last decision: a goal, a penalty, or an offside call",
+      "reviews": "the last decision: a goal, a penalty, an offside call, or any shot",
       "chooser": "the player who played the VAR card calls heads or tails before the flip",
       "outcome": {
         "heads": "original decision confirmed",
@@ -400,7 +403,9 @@
       "reviewable": [
         "GOAL",
         "PENALTY",
-        "OFFSIDE"
+        "OFFSIDE",
+        "SHOT_GOAL",
+        "SUPER_SHOT"
       ]
     },
     "chain_card": "Playable at any time, but ONLY by a player on the side that does NOT hold possession, and ONLY against a build-up card (Pass, Dribble, Assist). It cancels the running chain and takes possession immediately. It can never touch a scoring card.",

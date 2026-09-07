@@ -23,6 +23,8 @@ def strip_module(src: str) -> str:
     src = re.sub(r'^\s*import\s+.*?;\s*$', '', src, flags=re.M | re.S)
     src = re.sub(r'^\s*export\s+(const|class|function|let)\s', r'\1 ', src, flags=re.M)
     src = re.sub(r'^\s*export\s*\{[^}]*\}\s*;?\s*$', '', src, flags=re.M)
+    # Remove 'export function' (one word)
+    src = re.sub(r'^\s*export\s+function\s', 'function ', src, flags=re.M)
     return src
 
 
@@ -30,12 +32,14 @@ rules = strip_module((WEB / 'rules.js').read_text(encoding='utf-8'))
 cards = strip_module((WEB / 'cards.js').read_text(encoding='utf-8'))
 engine = strip_module((WEB / 'engine.js').read_text(encoding='utf-8'))
 
+# ── CSS: concatenate the 4 split files ────────────────────────────────────────
+style = ''
+for css_file in ['base.css', 'lobby.css', 'game.css', 'components.css']:
+    style += (WEB / 'styles' / css_file).read_text(encoding='utf-8') + '\n'
+
+# ── HTML: extract body markup from index.html ─────────────────────────────────
 html = (WEB / 'index.html').read_text(encoding='utf-8')
-style = html.split('<style>')[1].split('</style>')[0]
-body = html.split('<div class="wrap">')[1].split('<script type="module">')[0].rsplit('</div>', 1)[0]
-ui = html.split('<script type="module">')[1].split('</script>')[0]
-# extract overlay markup (sits before .wrap), balancing div nesting
-_pre = html.split('<div class="wrap">')[0]
+
 def _extract_button(html, id_):
     start = html.find(f'<button id="{id_}"')
     if start < 0: return ''
@@ -50,11 +54,110 @@ def _extract_div(html, id_):
         depth += 1 if not m.group(1) else -1
         if depth == 0: return html[start:start+m.end()+1]
     return ''
+
+# Overlays sit before .wrap
+_pre = html.split('<div class="wrap">')[0]
 overlays_html = (_extract_button(_pre,'muteBtn')
                 + '<div id="why-toast"></div>\n'
                 + _extract_div(_pre,'coin-overlay')
                 + _extract_div(_pre,'goal-overlay'))
-ui = re.sub(r'^\s*import\s+.*?;\s*$', '', ui, flags=re.M | re.S)
+
+# Body: between .wrap opening and the <script> tag (or </body>)
+body_start = html.index('<div class="wrap">') + len('<div class="wrap">')
+# Find the closing </div> for .wrap — it's before the <script> tag
+body_end_marker = '<script type="module"'
+body_end = html.index(body_end_marker)
+# Walk back to find the </div> that closes .wrap
+body_chunk = html[body_start:body_end]
+body = body_chunk.rsplit('</div>', 1)[0]
+
+# ── JS: read and strip each module in dependency order ────────────────────────
+# ui-render.js needs special handling: the state proxy object and initRender()
+# aren't needed in the offline build (everything is in one scope).
+
+# Also include onboarding.js (strip module syntax)
+onboarding = strip_module((WEB / 'onboarding.js').read_text(encoding='utf-8'))
+
+ui_render = (WEB / 'js' / 'ui-render.js').read_text(encoding='utf-8')
+ui_animations = (WEB / 'js' / 'ui-animations.js').read_text(encoding='utf-8')
+ui_game = (WEB / 'js' / 'ui-game.js').read_text(encoding='utf-8')
+ui_lobby = (WEB / 'js' / 'ui-lobby.js').read_text(encoding='utf-8')
+app_js = (WEB / 'js' / 'app.js').read_text(encoding='utf-8')
+
+# Strip module syntax from each, then remove the state proxy and initRender
+# (offline build has everything in one scope, so no proxy needed)
+ui_render_stripped = strip_module(ui_render)
+# Strip state.xxx refs (single scope, bare vars are fine)
+for var in ['room', 'view', 'fmt', 'mode', 'picked', 'table', 'feed',
+            'lastEvent', 'drawnCount', 'sweepTable', 'lastPossession',
+            'cardNo', 'prevHand', 'facedown', 'busyDeck', 'picks']:
+    ui_render_stripped = re.sub(r'\bstate\.' + var + r'\b', var, ui_render_stripped)
+# Remove the state proxy block
+ui_render_stripped = re.sub(
+    r'const state\s*=\s*\{.*?\};',
+    '/* state proxy removed — single-scope offline build */',
+    ui_render_stripped,
+    flags=re.S
+)
+# Remove initRender function
+ui_render_stripped = re.sub(
+    r'function initRender\(deps\)\s*\{.*?\}',
+    '/* initRender removed — single-scope offline build */',
+    ui_render_stripped,
+    flags=re.S
+)
+# Replace late-bound _renderXxx() calls with direct calls
+for fn in ['renderBoard', 'renderFeed', 'renderFan', 'renderTable', 'renderDeck', 'renderHand']:
+    ui_render_stripped = ui_render_stripped.replace(f'_{fn}(', f'{fn}(')
+ui_render_stripped = ui_render_stripped.replace('_cardPendingFn()', '_cardPending')
+ui_render_stripped = ui_render_stripped.replace('_runAnimations(', 'runAnimations(')
+# Remove late-bound variable declarations
+ui_render_stripped = re.sub(r'^let _render\w+.*?$', '', ui_render_stripped, flags=re.M)
+ui_render_stripped = re.sub(r'^let _runAnimations.*?$', '', ui_render_stripped, flags=re.M)
+ui_render_stripped = re.sub(r'^let _cardPendingFn.*?$', '', ui_render_stripped, flags=re.M)
+
+ui_animations_stripped = strip_module(ui_animations)
+# Same state.xxx → xxx replacement (single scope)
+for var in ['room', 'view', 'fmt', 'mode', 'picked', 'table', 'feed',
+            'lastEvent', 'drawnCount', 'sweepTable', 'lastPossession',
+            'cardNo', 'prevHand', 'facedown', 'busyDeck', 'picks']:
+    ui_animations_stripped = re.sub(r'\bstate\.' + var + r'\b', var, ui_animations_stripped)
+
+ui_game_stripped = strip_module(ui_game)
+# In ui-game.js, replace state.xxx with bare xxx (single scope)
+for var in ['room', 'view', 'fmt', 'mode', 'picked', 'table', 'feed',
+            'lastEvent', 'drawnCount', 'sweepTable', 'lastPossession',
+            'cardNo', 'prevHand', 'facedown', 'busyDeck', 'picks']:
+    ui_game_stripped = re.sub(r'\bstate\.' + var + r'\b', var, ui_game_stripped)
+
+ui_lobby_stripped = strip_module(ui_lobby)
+# Same state.xxx → xxx replacement
+for var in ['room', 'view', 'fmt', 'mode', 'picked', 'table', 'feed',
+            'lastEvent', 'drawnCount', 'sweepTable', 'lastPossession',
+            'cardNo', 'prevHand', 'facedown', 'busyDeck', 'picks']:
+    ui_lobby_stripped = re.sub(r'\bstate\.' + var + r'\b', var, ui_lobby_stripped)
+
+app_stripped = strip_module(app_js)
+# Remove initRender call and import wiring (not needed in single scope)
+app_stripped = re.sub(r'initRender\(\{.*?\}\);', '/* initRender not needed — single scope */', app_stripped, flags=re.S)
+
+# Combine UI JS in dependency order
+ui = '\n'.join([
+    '// ── ui-render.js ──',
+    ui_render_stripped,
+    '// ── ui-animations.js ──',
+    ui_animations_stripped,
+    '// ── ui-game.js ──',
+    ui_game_stripped,
+    '// ── onboarding.js ──',
+    onboarding,
+    '// alias for the import {init as initOnboarding} that was in the original',
+    'const initOnboarding = init;',
+    '// ── ui-lobby.js ──',
+    ui_lobby_stripped,
+    '// ── app.js ──',
+    app_stripped,
+])
 
 # A stand-in for net.js Room with the same surface, bot play only.
 local_room = '''

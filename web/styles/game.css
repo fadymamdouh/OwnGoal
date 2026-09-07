@@ -1,0 +1,263 @@
+/* ---------- side panel (desktop) / footer (mobile) ---------- */
+.gside{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.info{background:#15121f;border:1px solid #2a2140;border-radius:14px;
+  padding:11px 13px}
+.irow{display:flex;justify-content:space-between;align-items:center;
+  font-size:11.5px;color:var(--muted);padding:4px 0}
+.irow + .irow{border-top:1px solid #221b34}
+.irow b{color:var(--ink);font-family:'Oswald',sans-serif;font-size:13px}
+.ihint{margin-top:9px;padding-top:9px;border-top:1px solid #221b34;
+  font-size:10.5px;color:var(--muted);line-height:1.8}
+.ihint b{color:var(--ink)}
+
+/* ---------- table ---------- */
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;
+  padding:8px 10px;background:#15151f;border:1px solid var(--line);border-radius:12px}
+.score{font-family:'Oswald',sans-serif;font-size:24px;letter-spacing:.08em}
+.who{font-size:11px;color:var(--muted)}
+.pill{font-size:10px;font-family:'Oswald',sans-serif;letter-spacing:.14em;padding:3px 7px;
+  border-radius:20px;background:#0d0d16;border:1px solid var(--line);color:var(--muted)}
+.pill.live{background:var(--defense-glow);color:#04220f;border-color:transparent}
+.prompt{text-align:center;padding:13px 10px;margin-top:10px;border-radius:12px;
+  background:#1a1226;border:1px solid #33244a;font-weight:700;font-size:15px;line-height:1.5}
+.prompt.mine{background:#1d0f10;border-color:#4a2226}
+.prompt small{display:block;color:var(--muted);font-size:12px;font-weight:600;margin-top:4px}
+/* ---------- scoreboard ---------- */
+.board{border-radius:14px;overflow:hidden;background:#15121f;
+  border:1px solid #2a2140}
+.bteams{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
+  gap:8px;padding:12px 12px 10px;position:relative}
+.bteams::before,.bteams::after{content:'';position:absolute;top:0;bottom:0;
+  width:42%;z-index:0}
+.bteams::before{inset-inline-start:0;
+  background:linear-gradient(to left,transparent,#3b1020)}
+.bteams::after{inset-inline-end:0;
+  background:linear-gradient(to right,transparent,#0e2438)}
+.bteam{display:flex;align-items:center;gap:9px;min-width:0;z-index:1}
+.bteam.away{flex-direction:row-reverse}
+.crest{width:34px;height:34px;border-radius:50%;flex:0 0 auto;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Rakkas',cursive;font-size:17px;color:#fff;
+  box-shadow:0 2px 8px #0006}
+.bteam.home .crest{background:linear-gradient(150deg,var(--attack),#7a0f1f)}
+.bteam.away .crest{background:linear-gradient(150deg,#2b6fa8,var(--defense))}
+.bname{font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.bscore{text-align:center;z-index:1;padding:0 4px}
+.bnum{font-family:'Oswald',sans-serif;font-size:26px;letter-spacing:.06em;
+  background:#0b0912;border:1px solid #2a2140;border-radius:8px;
+  padding:3px 12px;white-space:nowrap}
+.bmeta{font-size:9px;color:var(--muted);font-weight:700;margin-top:4px}
+.bscorers{display:grid;grid-template-columns:1fr 1fr;gap:8px;
+  padding:0 12px 10px;min-height:14px}
+.bcol{font-size:10px;color:var(--muted);line-height:1.85}
+.bcol.away{text-align:left}
+.bcol b{color:var(--ink);font-weight:700}
+.bbar{border-top:1px solid #2a2140;padding:7px 12px;text-align:center;
+  background:#100d19}
+
+/* ---------- commentary ---------- */
+.comm{margin-top:10px;border-radius:14px;overflow:hidden;background:#15121f;
+  border:1px solid #2a2140}
+.commhead{display:flex;align-items:center;justify-content:space-between;
+  padding:9px 12px;border-bottom:1px solid #2a2140}
+.commttl{font-size:12px;font-weight:900;color:var(--ink);
+  border-bottom:2px solid var(--attack-glow);padding-bottom:5px}
+.keyev{display:flex;align-items:center;gap:6px;font-size:10px;
+  color:var(--muted);font-weight:700;cursor:pointer}
+.keyev input{display:none}
+.keyev span{width:26px;height:15px;border-radius:20px;background:#2a2140;
+  position:relative;transition:.15s}
+.keyev span::after{content:'';position:absolute;top:2px;inset-inline-start:2px;
+  width:11px;height:11px;border-radius:50%;background:#6b6b8a;transition:.15s}
+.keyev input:checked + span{background:var(--defense-glow)}
+.keyev input:checked + span::after{inset-inline-start:13px;background:#fff}
+.feed{max-height:184px;overflow-y:auto;font-size:12px;color:var(--muted)}
+.feed b{color:var(--ink);font-weight:700}
+.ev{display:flex;gap:10px;padding:9px 12px;border-bottom:1px solid #221b34}
+.ev:last-child{border-bottom:none}
+.evno{flex:0 0 30px;font-family:'Oswald',sans-serif;font-size:12px;
+  color:var(--muted);padding-top:1px}
+.evbody{flex:1;min-width:0}
+.evttl{font-family:'Rakkas',cursive;font-size:19px;color:var(--ink);
+  line-height:1.15}
+.evtxt{font-size:11.5px;line-height:1.6;margin-top:2px}
+.ev.key{background:#1b1226}
+.ev.key .evno{color:var(--attack-glow)}
+/* a possession change reads like a substitution: one out, one in */
+.swap{margin-top:6px;border-radius:8px;overflow:hidden;border:1px solid #2f2547}
+.swrow{display:flex;align-items:center;gap:7px;padding:6px 8px;font-size:11px;
+  font-weight:700;background:#1e1630}
+.swrow + .swrow{border-top:1px solid #2f2547}
+.swrow .ar{flex:0 0 auto;font-size:12px}
+.swrow.out .ar{color:var(--attack)}
+.swrow.in .ar{color:var(--defense-glow)}
+.swrow .who2{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;color:var(--ink)}
+.evgap{text-align:center;padding:8px;font-size:11px;color:#7a5c3a;
+  font-weight:700;letter-spacing:.2em}
+
+/* ---------- opponents: face-down fans ---------- */
+.oppzone{margin-top:10px;text-align:center}
+.fan{display:flex;justify-content:center;align-items:flex-end;gap:14px;
+  min-height:62px}
+.seatfan{display:flex;align-items:flex-end}
+.seatfan.mate{opacity:.8}
+.back{width:42px;height:58px;border-radius:7px;flex:0 0 auto;
+  background:repeating-linear-gradient(45deg,#1b1230 0 6px,#160f28 6px 12px);
+  border:1px solid #33244a;margin-inline-start:-18px;position:relative;
+  box-shadow:0 3px 9px #0007}
+.back:first-child{margin-inline-start:0}
+.back .crest{position:absolute;inset:0;display:flex;align-items:center;
+  justify-content:center;font-family:'Rakkas',cursive;font-size:14px;color:#3d2b63}
+.back.drawn{animation:dealin .32s ease-out}
+@keyframes dealin{from{transform:translateY(-24px) scale(.86);opacity:0}
+  to{transform:none;opacity:1}}
+
+/* ---------- the table ---------- */
+.table{margin-top:10px;border-radius:16px;position:relative;
+  background:radial-gradient(ellipse at 50% 40%,#123021 0%,#0c1f16 62%,#08150f 100%);
+  border:1px solid #1c3a28;min-height:96px;overflow:hidden;padding:10px 0 74px}
+.table::before{content:'';position:absolute;left:50%;top:0;bottom:0;width:1px;
+  background:#ffffff14}
+
+/* Every card played stays on the table. Only the last two are legible; older
+   ones collapse to a sliver you can scroll back through. */
+.hist{display:flex;align-items:center;overflow-x:auto;padding:4px 12px 6px;
+  min-height:86px;position:relative;z-index:2;scroll-behavior:smooth}
+.hist::-webkit-scrollbar{display:none}
+.hcard{width:54px;height:76px;border-radius:8px;border:1px solid #232338;
+  flex:0 0 auto;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:5px 3px;text-align:center;position:relative}
+.hcard.attack{background:linear-gradient(155deg,#2a0a0a,#0d0000)}
+.hcard.defense{background:linear-gradient(155deg,#040e1a,#030b14)}
+.hcard.special{background:linear-gradient(155deg,#130820,#070311)}
+.hcard.rare{background:linear-gradient(155deg,#241705,#0d0700)}
+.hcard .nm{font-family:'Rakkas',cursive;font-size:12px;line-height:1.05;margin-top:3px}
+.hcard .en{font-family:'Oswald',sans-serif;font-size:6px;letter-spacing:.14em;
+  color:var(--muted)}
+.hcard .by{position:absolute;bottom:2px;left:0;right:0;font-size:6.5px;
+  font-weight:700;color:var(--muted)}
+.hcard.mine{box-shadow:0 0 0 1px var(--attack-glow)}
+.hcard.theirs{box-shadow:0 0 0 1px var(--defense-glow)}
+.hcard + .hcard{margin-inline-start:6px}
+.hcard.old + .hcard.old,.hcard.old + .hcard{margin-inline-start:-38px}
+.hcard.old{opacity:.72}
+.hcard.old .nm,.hcard.old .en,.hcard.old .by{display:none}
+.hcard.old .edge{position:absolute;top:6px;bottom:6px;inset-inline-end:4px;
+  width:2px;border-radius:2px;background:#ffffff33}
+.hcard.fresh{animation:toTable .34s cubic-bezier(.22,1.2,.36,1) both}
+.hcard.freshflip{animation:flipin .46s ease-out both}
+@keyframes toTable{from{transform:translateY(76px) scale(.72) rotate(-7deg);opacity:0}
+  to{transform:none;opacity:1}}
+@keyframes flipin{0%{transform:translateY(-56px) rotateY(180deg) scale(.8);opacity:0}
+  60%{opacity:1}100%{transform:none;opacity:1}}
+.sep{flex:0 0 auto;width:1px;height:48px;background:#ffffff26;
+  margin-inline-start:8px;align-self:center}
+.gap{flex:0 0 auto;margin-inline-start:8px;align-self:center;color:#7a5c3a;
+  font-weight:900;font-size:13px;letter-spacing:.1em}
+.tablehint{position:absolute;top:44%;left:0;right:0;text-align:center;
+  font-size:10px;color:#5c7a68;font-weight:700;z-index:1}
+
+/* ---------- deck + discard ---------- */
+.deckpile,.discpile{position:absolute;bottom:9px;width:44px;height:60px;z-index:3}
+.deckpile{inset-inline-end:12px}
+.discpile{inset-inline-start:12px}
+.stk{position:absolute;inset:0;border-radius:7px;border:1px solid #33244a;
+  background:repeating-linear-gradient(45deg,#1b1230 0 5px,#160f28 5px 10px)}
+.stk:nth-child(2){transform:translate(2px,-2px)}
+.stk:nth-child(3){transform:translate(4px,-4px)}
+.cnt{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;z-index:4;pointer-events:none}
+.cnt b{font-family:'Oswald',sans-serif;font-size:16px;color:var(--ink)}
+.cnt span{font-size:8px;color:var(--muted);font-weight:700;margin-top:1px}
+.deckpile.can{cursor:pointer}
+.deckpile.can .stk:nth-child(3){box-shadow:0 0 0 1.5px var(--special-glow)}
+.deckpile.can::after{content:'اسحب';position:absolute;top:-16px;left:0;right:0;
+  text-align:center;font-size:10px;font-weight:900;color:var(--special-glow);
+  animation:puls 1s ease-in-out infinite}
+@keyframes puls{50%{opacity:.45}}
+.discpile .stk{background:repeating-linear-gradient(45deg,#241206 0 5px,#1b0d04 5px 10px);
+  border-color:#4a2a12}
+.drawpick{position:absolute;bottom:74px;inset-inline-end:6px;display:flex;gap:4px;z-index:6}
+.drawpick button{background:#15151f;border:1px solid var(--special-glow);
+  color:var(--ink);border-radius:8px;padding:7px 10px;font-size:13px;font-weight:700}
+.flyer{position:fixed;z-index:1200;pointer-events:none;border-radius:9px;
+  border:1.5px solid #5a3fa0;overflow:hidden;
+  box-shadow:0 6px 28px #0009;
+  will-change:transform,opacity;
+  transition:transform 400ms cubic-bezier(0.25,1,0.5,1),
+             opacity   400ms cubic-bezier(0.25,1,0.5,1)}
+.flyer img{width:100%;height:100%;object-fit:cover;border-radius:9px}
+/* hand cards shift right to make room when a card flies in */
+.hand .card.shifting{transition:transform 400ms cubic-bezier(0.25,1,0.5,1)}
+/* a card dealt but not yet pulled off the deck (LUCK mode) */
+.card.facedown{background:repeating-linear-gradient(45deg,#1b1230 0 7px,#160f28 7px 14px)}
+.card.facedown .half,.card.facedown .splitmark{visibility:hidden}
+.card.facedown::after{content:'مستني السحب';position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;font-family:'Rakkas',cursive;
+  font-size:15px;color:#5b4488;text-align:center;padding:0 10px}
+
+/* ---------- hand ---------- */
+.hand{display:flex;gap:8px;overflow-x:auto;padding:12px 4px 18px;scroll-snap-type:x mandatory}
+.hand::-webkit-scrollbar{display:none}
+.card{flex:0 0 108px;height:152px;border-radius:10px;position:relative;overflow:hidden;
+  border:1px solid #232338;display:flex;flex-direction:column;padding:7px 6px;
+  scroll-snap-align:center;transition:.15s;text-align:center}
+.card.attack{background:linear-gradient(155deg,#2a0a0a,#0d0000)}
+.card.defense{background:linear-gradient(155deg,#040e1a,#030b14)}
+.card.special{background:linear-gradient(155deg,#130820,#070311)}
+.card.rare{background:linear-gradient(155deg,#241705,#0d0700)}
+.card.dead{opacity:.32;filter:grayscale(.6)}
+.card.pick{transform:translateY(-8px);box-shadow:0 0 0 2px var(--defense-glow)}
+.card .en{font-family:'Oswald',sans-serif;font-size:7px;letter-spacing:.16em;color:var(--muted)}
+.card .ar{font-family:'Rakkas',cursive;font-size:19px;line-height:1.05;margin-top:1px}
+.card .ico{flex:1;display:flex;align-items:center;justify-content:center}
+.card .ln{font-size:8.5px;line-height:1.35;font-weight:700;opacity:.92}
+.card .bar{height:3px;border-radius:2px;margin-top:5px}
+.tick{position:absolute;top:5px;left:5px;font-size:9px;font-weight:900;color:var(--defense-glow)}
+/* A split card is ONE physical card carrying two faces. Both are always shown,
+   because which one you may use depends on whether you are attacking or
+   defending — and because players must be able to reason about the deck
+   (e.g. Block Save shares its card with Super Shot). */
+.card.split{padding:0;justify-content:stretch}
+.half{flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:6px 5px;text-align:center;position:relative;
+  min-height:0}
+.half + .half{border-top:1px dashed #ffffff2e}
+.half.attack{background:linear-gradient(155deg,#2a0a0a,#0d0000)}
+.half.defense{background:linear-gradient(155deg,#040e1a,#030b14)}
+.half.special{background:linear-gradient(155deg,#130820,#070311)}
+.half.rare{background:linear-gradient(155deg,#241705,#0d0700)}
+.half .en{font-family:'Oswald',sans-serif;font-size:6.5px;letter-spacing:.15em;
+  color:var(--muted)}
+.half .ar{font-family:'Rakkas',cursive;font-size:17px;line-height:1.05}
+.half .ico{margin-top:1px}
+.half.off{opacity:.3;filter:grayscale(.7)}
+.half.on{box-shadow:inset 0 0 0 1px var(--defense-glow)}
+.half.on::after{content:'▲';position:absolute;bottom:2px;left:50%;
+  transform:translateX(-50%);font-size:7px;color:var(--defense-glow)}
+/* ---------- reshuffle picking ---------- */
+.card.sel{outline:2px solid var(--special-glow);outline-offset:-2px}
+.card.sel::before{content:attr(data-pick);position:absolute;top:5px;
+  inset-inline-end:5px;z-index:3;width:19px;height:19px;border-radius:50%;
+  background:var(--special-glow);color:#1a1206;font-family:'Oswald',sans-serif;
+  font-size:12px;display:flex;align-items:center;justify-content:center}
+.pickbar{display:flex;gap:8px;align-items:center;margin-top:8px;
+  background:#1b1226;border:1px solid #33244a;border-radius:12px;padding:9px 12px}
+.pickbar .txt{flex:1;font-size:12px;font-weight:700;color:var(--ink)}
+.pickbar button{background:var(--special);border-radius:9px;padding:9px 15px;
+  color:#fff;font-size:13px;font-weight:700}
+.pickbar button:disabled{background:#2a2140;color:#6b6b8a}
+.pickbar .clr{background:none;color:var(--muted);text-decoration:underline;
+  padding:9px 4px;font-size:11px}
+
+.splitmark{position:absolute;top:50%;inset-inline-start:3px;
+  transform:translateY(-50%);font-size:7px;color:#ffffff4d;font-weight:900;
+  letter-spacing:.1em;writing-mode:vertical-rl;z-index:2}
+.dual{display:flex;gap:6px;margin-top:6px}
+.dual button{flex:1;border-radius:8px;padding:8px 4px;font-size:11px;font-weight:700;
+  background:#15151f;border:1px solid var(--line);color:var(--ink)}
+.over{text-align:center;padding:22px 12px}
+.over .big{font-family:'Rakkas',cursive;font-size:40px;line-height:1.1}
+.hide{display:none!important}

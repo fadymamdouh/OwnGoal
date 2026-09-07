@@ -14,10 +14,8 @@ from typing import TYPE_CHECKING
 from .rules_loader import (
     ACTIONS,
     COUNTERS,
-    DEFENSE_FACES,
     EVENTS,
     PHASES,
-    POSSESSION,
     SHOT_STAGE,
 )
 
@@ -26,6 +24,7 @@ if TYPE_CHECKING:
 
 
 # ── attack draw / defense draw ──────────────────────────────────────
+
 
 def _do_draw(self: Game, seat_i: int, action: dict) -> None:
     n = action["n"]
@@ -46,6 +45,7 @@ def _do_draw(self: Game, seat_i: int, action: dict) -> None:
 
 
 # ── attack ──────────────────────────────────────────────────────────
+
 
 def _do_attack(self: Game, seat_i: int, action: dict) -> None:
     seat = self.seats[seat_i]
@@ -78,7 +78,7 @@ def _do_attack(self: Game, seat_i: int, action: dict) -> None:
         return
 
     if self._strategy() and self.owed > 0:
-        self._emit(EVENTS.CHAIN_PASSED, face=face)   # middle cards go unanswered
+        self._emit(EVENTS.CHAIN_PASSED, face=face)  # middle cards go unanswered
         if not self._playable_attack_faces(seat, self.owed <= 1):
             self._burn_owed(seat_i, self.owed)
             self.owed = 0
@@ -89,6 +89,7 @@ def _do_attack(self: Game, seat_i: int, action: dict) -> None:
 
 
 # ── defense ─────────────────────────────────────────────────────────
+
 
 def _do_defense(self: Game, seat_i: int, action: dict) -> None:
     seat = self.seats[seat_i]
@@ -120,8 +121,7 @@ def _do_defense(self: Game, seat_i: int, action: dict) -> None:
         flip = self.rng.choice(["heads", "tails"])
         overturned = flip == "tails"
         self._emit(EVENTS.VAR, seat=seat_i, flip=flip, overturned=overturned, reviewing=target)
-        self._emit(EVENTS.DEFENSE_PLAYED, seat=seat_i, face=face,
-                   stopped=overturned)
+        self._emit(EVENTS.DEFENSE_PLAYED, seat=seat_i, face=face, stopped=overturned)
         if overturned:
             self._resolve_stopped("VAR", seat_i)
             return
@@ -137,7 +137,7 @@ def _do_defense(self: Game, seat_i: int, action: dict) -> None:
         return
 
     if self.def_owed > 0:
-        return          # keep trying with the next drawn card
+        return  # keep trying with the next drawn card
 
     # every attempt failed
     if target in SHOT_STAGE:
@@ -151,12 +151,12 @@ def _do_defense(self: Game, seat_i: int, action: dict) -> None:
             if c:
                 self.seats[self.possession].hand.append(c)
             self.owed = 1
-            if not self._playable_attack_faces(
-                    self.seats[self.possession], True):
+            if not self._playable_attack_faces(self.seats[self.possession], True):
                 self._concede()
 
 
 # ── reaction: own goal ──────────────────────────────────────────────
+
 
 def _do_own_goal(self: Game, seat_i: int, action: dict) -> None:
     if action["type"] == ACTIONS.PASS:
@@ -171,6 +171,7 @@ def _do_own_goal(self: Game, seat_i: int, action: dict) -> None:
 
 
 # ── reaction: VAR ───────────────────────────────────────────────────
+
 
 def _do_var(self: Game, seat_i: int, action: dict) -> None:
     p = self.pending
@@ -191,6 +192,7 @@ def _do_var(self: Game, seat_i: int, action: dict) -> None:
 
 
 # ── reaction: VAR on offside ────────────────────────────────────────
+
 
 def _do_var_offside(self: Game, seat_i: int, action: dict) -> None:
     p = self.pending
@@ -224,6 +226,7 @@ def _do_var_offside(self: Game, seat_i: int, action: dict) -> None:
 
 
 # ── reshuffle ───────────────────────────────────────────────────────
+
 
 def _do_reshuffle_pick(self: Game, seat_i: int, action: dict) -> None:
     p = self.pending

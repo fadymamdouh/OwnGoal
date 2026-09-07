@@ -1,0 +1,90 @@
+:root{
+  --attack:#D7263D;--attack-glow:#FF6B35;
+  --defense:#1B4F72;--defense-glow:#2ECC71;
+  --special:#7D3C98;--special-glow:#F1C40F;
+  --rare:#B8860B;--rare-glow:#F1C40F;
+  --ink:#F0E6D3;--muted:#A89880;--line:#2C2C54;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#0d0d16;color:var(--ink);font-family:'Cairo',sans-serif;
+  min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
+button{font-family:inherit;cursor:pointer;border:none}
+/* The 520px cap lives on each SCREEN, not on .wrap, so the match can go wide
+   on a desktop while the lobby stays a comfortable reading column. */
+.wrap{flex:1;display:flex;flex-direction:column;margin:0 auto;width:100%;
+  padding:14px 12px 0}
+#lobby,#waiting{max-width:520px;margin:0 auto;width:100%}
+#game{max-width:520px;margin:0 auto;width:100%}
+
+
+
+/* ---------- scrollbars — themed to match the dark UI ---------- */
+/* Firefox */
+.gplay,.gside,.feed{ scrollbar-width:thin; scrollbar-color:#2a2140 transparent }
+/* Webkit / Blink */
+.gplay::-webkit-scrollbar,.gside::-webkit-scrollbar,.feed::-webkit-scrollbar{width:5px}
+.gplay::-webkit-scrollbar-track,.gside::-webkit-scrollbar-track,.feed::-webkit-scrollbar-track{background:transparent}
+.gplay::-webkit-scrollbar-thumb,.gside::-webkit-scrollbar-thumb,.feed::-webkit-scrollbar-thumb{background:#2a2140;border-radius:3px}
+.gplay::-webkit-scrollbar-thumb:hover,.feed::-webkit-scrollbar-thumb:hover{background:#3d3060}
+/* Phone: page scrollbar */
+html{ scrollbar-width:thin; scrollbar-color:#2a2140 transparent }
+html::-webkit-scrollbar{width:5px}
+html::-webkit-scrollbar-track{background:transparent}
+html::-webkit-scrollbar-thumb{background:#2a2140;border-radius:3px}
+
+/* ---------- desktop: three columns instead of one tall scroll ---------- */
+@media (min-width:1000px){
+  /* During a match the page itself does not scroll — the whole board fits the
+     viewport and each column scrolls internally if it needs to. The lock is
+     tied to body.playing so the lobby keeps normal page scrolling. */
+  body.playing{height:100vh;overflow:hidden}
+  body.playing .wrap{height:100vh;overflow:hidden;padding-bottom:14px}
+
+  #game{
+    max-width:1240px;
+    display:grid;
+    gap:14px;
+    grid-template-columns:320px minmax(0,1fr) 250px;
+    grid-template-rows:auto minmax(0,1fr);
+    grid-template-areas:
+      "comm play board"
+      "comm play side";
+    height:100%;
+    min-height:0;
+  }
+  #game.hide{display:none}
+  .board{grid-area:board}
+  .gside{grid-area:side}
+  /* min-height:0 on every column, or a grid child refuses to shrink and the
+     page grows a scrollbar again */
+  .gplay{grid-area:play;display:flex;flex-direction:column;
+    min-height:0;overflow-y:auto}
+  /* Nothing in the play column may be squashed to fit. The cards are 168px
+     tall and a flex child will happily shrink to nothing — on a 600px-high
+     window the hand collapsed to 32px. The column scrolls instead. */
+  .gplay > *{flex:0 0 auto}
+  /* the table fills the remaining vertical space in the play column; the other
+     elements are fixed-height and the table is the one that can give */
+  .table{flex:1 1 0;min-height:96px}
+  /* let the hist strip start at zero so the flex algorithm can give the table
+     the right size — on mobile the 86px floor is still wanted */
+  .hist{min-height:0}
+  .comm{grid-area:comm;margin-top:0;min-height:0;
+    display:flex;flex-direction:column}
+  /* commentary and play columns run from the very top now, matching gside */
+  .comm > .commhead{border-radius:14px 14px 0 0}
+  .gside{grid-area:side;min-height:0;display:flex;flex-direction:column;gap:10px;
+    overflow-y:auto;align-self:start}
+  .gside .board{flex:0 0 auto}
+  /* the commentary fills its column to the bottom, then scrolls */
+  .commhead{flex:0 0 auto}
+  .feed{max-height:none;flex:1 1 auto;min-height:0;overflow-y:auto}
+  /* more room for the table and the hand */
+  /* .table min-height is handled by flex:1 above */
+  .hand{padding-bottom:20px}
+  .bnum{font-size:34px;padding:5px 18px}
+  .crest{width:44px;height:44px;font-size:22px}
+  .bname{font-size:14px}
+  .fan{min-height:80px}
+  .back{width:54px;height:74px;margin-inline-start:-22px}
+}

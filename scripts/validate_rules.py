@@ -36,6 +36,7 @@ def info(m):
 
 # ---------------------------------------------------------------- loading
 
+
 def load(path):
     with open(path, encoding="utf-8") as f:
         return json.load(f)
@@ -68,6 +69,7 @@ def active_cards(rules, match_type=None, play_mode=None):
 
 # ---------------------------------------------------------------- checks
 
+
 def check_integrity(rules):
     """Every printed face is a defined card, and every card gets printed."""
     faces = {f for p in rules["physical_cards"] for f in p["faces"]}
@@ -99,9 +101,13 @@ def check_every_attack_answerable(rules):
             for atk in sorted(cards_of_class(rules, "attack") & live):
                 answers = [d for d, stops in cmap.items() if atk in stops and d in live]
                 if not answers:
-                    err(f"[{match_type}/{play_mode}] '{atk}' has no legal counter — it always scores.")
+                    err(
+                        f"[{match_type}/{play_mode}] '{atk}' has no legal counter — it always scores."
+                    )
                 elif len(answers) == 1 and answers[0] != "FOUL":
-                    info(f"[{match_type}/{play_mode}] '{atk}' has exactly one counter: {answers[0]}.")
+                    info(
+                        f"[{match_type}/{play_mode}] '{atk}' has exactly one counter: {answers[0]}."
+                    )
 
 
 def check_dead_defenses(rules):
@@ -127,22 +133,35 @@ def check_dead_defenses(rules):
             sa, sb = cmap[a], cmap[b]
             pa = POSSESSION_RANK.get(poss.get(a, "neutral"), 1)
             pb = POSSESSION_RANK.get(poss.get(b, "neutral"), 1)
-            notes = " ".join(str(c.get("note", "")) for c in rules["counters"]
-                             if c["defense"] in (a, b))
+            notes = " ".join(
+                str(c.get("note", "")) for c in rules["counters"] if c["defense"] in (a, b)
+            )
             if sa == sb and pa == pb and "ACCEPTED_BY_DESIGNER" in notes:
-                info(f"'{a}' and '{b}' are functionally identical — intentional, per designer ruling.")
+                info(
+                    f"'{a}' and '{b}' are functionally identical — intentional, per designer ruling."
+                )
             elif sa == sb and pa == pb:
-                warn(f"'{a}' and '{b}' are functionally identical (same targets, same possession). "
-                     f"Merge them or differentiate — your own design notes say merge duplicates.")
-            elif sa >= sb and pa >= pb and (sa > sb or pa > pb) and \
-                    copies.get(a, 0) * 2 <= copies.get(b, 0):
-                info(f"'{a}' outclasses '{b}' but is far rarer ({copies.get(a)} vs {copies.get(b)} "
-                     f"copies) — a premium card, balanced by scarcity.")
+                warn(
+                    f"'{a}' and '{b}' are functionally identical (same targets, same possession). "
+                    f"Merge them or differentiate — your own design notes say merge duplicates."
+                )
+            elif (
+                sa >= sb
+                and pa >= pb
+                and (sa > sb or pa > pb)
+                and copies.get(a, 0) * 2 <= copies.get(b, 0)
+            ):
+                info(
+                    f"'{a}' outclasses '{b}' but is far rarer ({copies.get(a)} vs {copies.get(b)} "
+                    f"copies) — a premium card, balanced by scarcity."
+                )
             elif sa >= sb and pa >= pb and (sa > sb or pa > pb) and "ACCEPTED_BY_DESIGNER" in notes:
                 info(f"'{b}' is dominated by '{a}' — accepted by designer ruling.")
             elif sa >= sb and pa >= pb and (sa > sb or pa > pb):
-                warn(f"'{b}' is strictly dominated by '{a}' (same or fewer targets, same or worse "
-                     f"possession). Nobody will ever choose '{b}' on purpose.")
+                warn(
+                    f"'{b}' is strictly dominated by '{a}' (same or fewer targets, same or worse "
+                    f"possession). Nobody will ever choose '{b}' on purpose."
+                )
 
 
 def check_stage_relevance(rules):
@@ -160,33 +179,43 @@ def check_stage_relevance(rules):
     )
     total = sum(counts[p["id"]] for p in rules["physical_cards"] if p["type"] != "token")
     if rules["play_modes"].get("STRATEGY", {}).get("shot_must_be_last"):
-        info(f"Build-up cards ({', '.join(sorted(early))}) sit on {early_copies} of {total} physical "
-             f"cards. In STRATEGY mode the shot-must-be-last rule makes them mandatory for any multi-card "
-             f"chain. In LUCK mode their value is attrition — measured at 61% vs 39% in favour of "
-             f"shooting on sight, so they are the fallback play rather than a tactic.")
+        info(
+            f"Build-up cards ({', '.join(sorted(early))}) sit on {early_copies} of {total} physical "
+            f"cards. In STRATEGY mode the shot-must-be-last rule makes them mandatory for any multi-card "
+            f"chain. In LUCK mode their value is attrition — measured at 61% vs 39% in favour of "
+            f"shooting on sight, so they are the fallback play rather than a tactic."
+        )
         return
-    warn(f"Any Attack card may open a chain, so build-up cards ({', '.join(sorted(early))}) are "
-         f"never *required* to score. They sit on {early_copies} of {total} physical cards "
-         f"({early_copies / total:.0%} of the deck). Their only value is attrition — forcing the "
-         f"defender to burn a card while you wait to draw a shot. Confirm that is the intent.")
+    warn(
+        f"Any Attack card may open a chain, so build-up cards ({', '.join(sorted(early))}) are "
+        f"never *required* to score. They sit on {early_copies} of {total} physical cards "
+        f"({early_copies / total:.0%} of the deck). Their only value is attrition — forcing the "
+        f"defender to burn a card while you wait to draw a shot. Confirm that is the intent."
+    )
 
 
 def check_strategy_combo(rules):
     """Strategy mode: does a longer combo actually buy anything?"""
     s = rules["play_modes"].get("STRATEGY", {})
-    if "LAST card" not in s.get("defense_answers", "") and "last" not in s.get("defense_answers", ""):
+    if "LAST card" not in s.get("defense_answers", "") and "last" not in s.get(
+        "defense_answers", ""
+    ):
         return
     if "ACCEPTED_BY_DESIGNER" in str(s.get("combo_reward", "")):
-        info("STRATEGY mode: no combo reward, by designer ruling. The 1-3 draw is a hand-churn tool "
-             "rather than an offensive one — a 3-card combo costs two extra cards for the same outcome "
-             "as a lone Shot. Accepted risk; recheck after playtesting.")
+        info(
+            "STRATEGY mode: no combo reward, by designer ruling. The 1-3 draw is a hand-churn tool "
+            "rather than an offensive one — a 3-card combo costs two extra cards for the same outcome "
+            "as a lone Shot. Accepted risk; recheck after playtesting."
+        )
         return
     if not s.get("combo_reward"):
-        warn("STRATEGY mode: the defender answers only the last card, so drawing 3 and playing "
-             "Pass→Dribble→Shot achieves exactly what drawing 1 and playing Shot achieves — while "
-             "spending two extra cards. Drawing 1 is always optimal and the mode collapses into "
-             "Luck mode. Add a 'combo_reward' rule (e.g. a 3-card chain cannot be answered by Foul, "
-             "or a completed combo scores 2) or drop the mode.")
+        warn(
+            "STRATEGY mode: the defender answers only the last card, so drawing 3 and playing "
+            "Pass→Dribble→Shot achieves exactly what drawing 1 and playing Shot achieves — while "
+            "spending two extra cards. Drawing 1 is always optimal and the mode collapses into "
+            "Luck mode. Add a 'combo_reward' rule (e.g. a 3-card chain cannot be answered by Foul, "
+            "or a completed combo scores 2) or drop the mode."
+        )
 
 
 def check_availability(rules):
@@ -198,8 +227,11 @@ def check_availability(rules):
     hand = rules["match"]["hand_size"]
     for match_type in rules["match"]["match_types"]:
         live = active_cards(rules, match_type, "LUCK")
-        deck = [p for p in rules["physical_cards"]
-                if p["type"] != "token" and any(f in live for f in p["faces"])]
+        deck = [
+            p
+            for p in rules["physical_cards"]
+            if p["type"] != "token" and any(f in live for f in p["faces"])
+        ]
         N = sum(p["copies"] for p in deck)
         info(f"[{match_type}] draw deck = {N} physical cards.")
         for atk in sorted(cards_of_class(rules, "attack") & live):
@@ -209,10 +241,15 @@ def check_availability(rules):
                 p_hit = 1.0
             else:
                 p_hit = 1 - comb(N - carriers, hand) / comb(N, hand)
-            line = (f"[{match_type}] '{atk}': {carriers}/{N} cards can answer it → "
-                    f"{p_hit:.0%} chance a 4-card hand holds an answer.")
-            accepted = any("ACCEPTED_BY_DESIGNER" in str(c.get("note", ""))
-                           for c in rules["counters"] if atk in c["stops"])
+            line = (
+                f"[{match_type}] '{atk}': {carriers}/{N} cards can answer it → "
+                f"{p_hit:.0%} chance a 4-card hand holds an answer."
+            )
+            accepted = any(
+                "ACCEPTED_BY_DESIGNER" in str(c.get("note", ""))
+                for c in rules["counters"]
+                if atk in c["stops"]
+            )
             if p_hit < 0.15 and accepted:
                 info(line + " Accepted by designer as a rare finisher rather than a duel.")
             elif p_hit < 0.15:
@@ -228,8 +265,10 @@ def check_var_scope(rules):
     var = next((c for c in rules["counters"] if c["defense"] == "VAR"), None)
     declared = set(rules["resolution"].get("var", {}).get("reviewable", []))
     if var and declared and set(var["stops"]) != declared:
-        err(f"VAR's counter-table targets {sorted(var['stops'])} do not match "
-            f"resolution.var.reviewable {sorted(declared)}.")
+        err(
+            f"VAR's counter-table targets {sorted(var['stops'])} do not match "
+            f"resolution.var.reviewable {sorted(declared)}."
+        )
 
 
 def check_endless_deck(rules):
@@ -237,16 +276,21 @@ def check_endless_deck(rules):
     if "exhaustion" in " ".join(rules["match"]["ends_when"]).lower():
         return
     if "ACCEPTED_BY_DESIGNER" in str(rules["match"].get("turn_limit_ruling", "")):
-        info("No turn limit, by designer ruling. Matches end only at goals_to_win or on the single "
-             "END_MATCH card. Mandatory attacking makes stalling illegal, so this is survivable — but "
-             "measure match length in playtesting.")
+        info(
+            "No turn limit, by designer ruling. Matches end only at goals_to_win or on the single "
+            "END_MATCH card. Mandatory attacking makes stalling illegal, so this is survivable — but "
+            "measure match length in playtesting."
+        )
         return
-    if "never run" in rules["resolution"].get("deck_refill", "") or \
-       "shuffle the discard" in rules["resolution"].get("deck_refill", ""):
+    if "never run" in rules["resolution"].get("deck_refill", "") or "shuffle the discard" in rules[
+        "resolution"
+    ].get("deck_refill", ""):
         ends = [e for e in rules["match"]["ends_when"] if "END_MATCH" not in e]
-        warn(f"The deck recycles forever, so a match can only end by {ends[0]} or the single "
-             f"END_MATCH card. Two cagey players who both refuse to shoot have no exit. Consider a "
-             f"turn limit, or a second copy of END_MATCH.")
+        warn(
+            f"The deck recycles forever, so a match can only end by {ends[0]} or the single "
+            f"END_MATCH card. Two cagey players who both refuse to shoot have no exit. Consider a "
+            f"turn limit, or a second copy of END_MATCH."
+        )
 
 
 def check_provisional(rules):
@@ -267,7 +311,9 @@ def check_provisional(rules):
     for path, text in found:
         warn(f"UNRESOLVED at {path}: {text}")
     if found:
-        warn(f"{len(found)} rule(s) still provisional — do not send art to print until these close.")
+        warn(
+            f"{len(found)} rule(s) still provisional — do not send art to print until these close."
+        )
 
 
 def check_parity(rules):
@@ -292,14 +338,27 @@ def check_parity(rules):
 
 # ---------------------------------------------------------------- report
 
+
 def main():
-    path = Path(sys.argv[1]) if len(sys.argv) > 1 else \
-        Path(__file__).resolve().parent.parent / "references" / "rules.json"
+    path = (
+        Path(sys.argv[1])
+        if len(sys.argv) > 1
+        else Path(__file__).resolve().parent.parent / "references" / "rules.json"
+    )
     rules = load(path)
 
-    for fn in (check_integrity, check_every_attack_answerable, check_dead_defenses,
-               check_stage_relevance, check_strategy_combo, check_availability,
-               check_var_scope, check_endless_deck, check_provisional, check_parity):
+    for fn in (
+        check_integrity,
+        check_every_attack_answerable,
+        check_dead_defenses,
+        check_stage_relevance,
+        check_strategy_combo,
+        check_availability,
+        check_var_scope,
+        check_endless_deck,
+        check_provisional,
+        check_parity,
+    ):
         fn(rules)
 
     print(f"\nOWN GOAL rules validator — {rules['game']} v{rules['version']}")
@@ -313,8 +372,10 @@ def main():
             print(f"  • {m}")
     print("\n" + "=" * 72)
     print(f"{len(ERRORS)} errors, {len(WARNINGS)} warnings, {len(INFO)} notes.")
-    print("Errors break the game and must be fixed. Warnings are design debt —"
-          "\nresolve them before committing anything to print.\n")
+    print(
+        "Errors break the game and must be fixed. Warnings are design debt —"
+        "\nresolve them before committing anything to print.\n"
+    )
     return 1 if ERRORS else 0
 
 

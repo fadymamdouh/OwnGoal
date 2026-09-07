@@ -1,0 +1,34 @@
+/* ---------- lobby ---------- */
+/* ---------- splash screen ---------- */
+#splash{position:fixed;inset:0;z-index:9999;background:#000;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  transition:opacity .8s}
+#splash.fade{opacity:0;pointer-events:none}
+#splash-vid{max-width:min(480px,90vw);max-height:80vh;border-radius:16px}
+#splash-skip{margin-top:18px;font-size:12px;font-weight:700;color:#ffffff66;
+  letter-spacing:.1em;cursor:pointer}
+
+/* ---------- brand logo ---------- */
+.brand-logo{width:min(320px,80vw);height:auto;display:block;margin:0 auto}
+
+.brand{font-family:'Rakkas',cursive;font-size:52px;text-align:center;line-height:1;
+  color:var(--attack-glow);margin-top:22px}
+.brand small{display:block;font-family:'Oswald',sans-serif;font-size:11px;
+  letter-spacing:.5em;color:var(--muted);margin-top:6px}
+.panel{background:#15151f;border:1px solid var(--line);border-radius:14px;padding:16px;
+  margin-top:18px}
+.panel h2{font-size:15px;font-weight:700;margin-bottom:10px}
+.row{display:flex;gap:8px;margin-bottom:10px}
+.row>*{flex:1}
+input{background:#0d0d16;border:1px solid var(--line);color:var(--ink);border-radius:10px;
+  padding:12px;font-size:16px;font-family:inherit;text-align:center;width:100%}
+input::placeholder{color:#55525f}
+.opt{background:#0d0d16;border:1px solid var(--line);color:var(--muted);border-radius:10px;
+  padding:11px 6px;font-size:13px;font-weight:600;transition:.15s}
+.opt.on{background:var(--attack);border-color:var(--attack);color:#fff}
+.go{width:100%;background:var(--attack-glow);color:#1a0505;border-radius:10px;padding:14px;
+  font-size:17px;font-weight:900;margin-top:4px}
+.go.ghost{background:transparent;border:1px solid var(--line);color:var(--ink);font-weight:700}
+.hint{color:var(--muted);font-size:12px;line-height:1.6;text-align:center;margin-top:12px}
+.code{font-family:'Oswald',sans-serif;font-size:34px;letter-spacing:.28em;text-align:center;
+  color:var(--special-glow);padding:6px 0}

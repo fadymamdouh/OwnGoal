@@ -77,12 +77,12 @@ async function exitRoom() {
 
 export function initLobby() {
   /* format / mode toggle buttons */
-  document.querySelectorAll('[data-state.fmt]').forEach(b => b.onclick = () => {
-    document.querySelectorAll('[data-state.fmt]').forEach(x => x.classList.remove('on'));
+  document.querySelectorAll('[data-fmt]').forEach(b => b.onclick = () => {
+    document.querySelectorAll('[data-fmt]').forEach(x => x.classList.remove('on'));
     b.classList.add('on'); state.fmt = b.dataset.fmt;
   });
-  document.querySelectorAll('[data-state.mode]').forEach(b => b.onclick = () => {
-    document.querySelectorAll('[data-state.mode]').forEach(x => x.classList.remove('on'));
+  document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
+    document.querySelectorAll('[data-mode]').forEach(x => x.classList.remove('on'));
     b.classList.add('on'); state.mode = b.dataset.mode;
   });
 

@@ -24,10 +24,10 @@ ROOT = Path(__file__).resolve().parent.parent
 RULES = json.loads((ROOT / "references" / "rules.json").read_text(encoding="utf-8"))
 
 INK = {
-    "attack":  "#E8552E",   # street-cone orange
-    "defense": "#2FA98C",   # pitch teal
-    "special": "#8C6FE0",   # floodlight violet
-    "rare":    "#E0A62F",   # brass whistle
+    "attack": "#E8552E",  # street-cone orange
+    "defense": "#2FA98C",  # pitch teal
+    "special": "#8C6FE0",  # floodlight violet
+    "rare": "#E0A62F",  # brass whistle
 }
 ASPHALT = "#1B1E1C"
 ASPHALT_2 = "#232725"
@@ -36,51 +36,171 @@ CHALK_DIM = "#8E8B80"
 
 # --- chalk icon set: geometric, single stroke, no fills -----------------------
 I = {
-"PASS":'<circle cx="20" cy="26" r="6"/><path d="M4 14h18M8 9h14"/>',
-"INTERCEPTION":'<path d="M4 24h20"/><path d="M18 18l6 6-6 6"/><path d="M28 10v28"/>',
-"DRIBBLE":'<path d="M4 34c6 0 6-10 12-10s6 10 12 10"/><circle cx="32" cy="12" r="5"/>',
-"TACKLE":'<path d="M4 32h14l4-8"/><path d="M4 32l2 6h12"/><circle cx="31" cy="27" r="6"/>',
-"SHOT_GOAL":'<circle cx="14" cy="24" r="6"/><path d="M26 12h12v24H26z"/><path d="M32 12v24M26 24h12"/>',
-"GOAL_KEEPER":'<path d="M10 34V18a4 4 0 018 0v-4a3 3 0 016 0v4a3 3 0 016 0v16z"/><path d="M10 34h20"/>',
-"SUPER_SHOT":'<circle cx="26" cy="22" r="7"/><path d="M4 12l8 4-8 4M4 26l10 3-10 3"/><path d="M36 10l-4 6h5l-5 8"/>',
-"BLOCK_SAVE":'<path d="M8 36V22a3 3 0 016 0v-6a3 3 0 016 0v6"/><circle cx="30" cy="14" r="6"/><path d="M20 22h6"/>',
-"ASSIST":'<path d="M4 34c4-16 16-22 28-22"/><path d="M26 8l6 4-6 4"/><circle cx="8" cy="34" r="4"/>',
-"GOAL":'<path d="M6 12h28v24H6z"/><path d="M14 12v24M22 12v24M30 12v24M6 20h28M6 28h28"/><circle cx="20" cy="24" r="5"/>',
-"PENALTY":'<circle cx="20" cy="14" r="6"/><circle cx="20" cy="34" r="2"/><path d="M20 20v10" stroke-dasharray="3 3"/>',
-"FOUL":'<path d="M8 18h16l8-4v14l-8-4H8z"/><path d="M8 18a6 6 0 000 6"/><path d="M32 8l4-4M36 14h6"/>',
-"OFFSIDE":'<path d="M12 8v32"/><path d="M12 10l20 5-20 5z"/>',
-"BLOCK":'<path d="M10 10v28M20 10v28M30 10v28"/><path d="M4 20h32"/>',
-"BLOCK_SHOT":'<path d="M6 36c8-2 12-10 12-18"/><path d="M18 18l8 4"/><circle cx="32" cy="14" r="6"/>',
-"OWN_GOAL":'<path d="M6 12h28v24H6z"/><path d="M14 12v24M22 12v24M30 12v24"/><path d="M34 24H16"/><path d="M22 18l-6 6 6 6"/>',
-"CHAIN":'<path d="M6 16h14M20 16l-5-4M20 16l-5 4"/><path d="M34 30H20M20 30l5-4M20 30l5 4"/>',
-"VAR":'<path d="M6 10h28v20H6z"/><path d="M16 34h12"/><path d="M17 16l8 4-8 4z"/>',
-"RESHUFFLE":'<path d="M8 14h20M28 14l-5-4M28 14l-5 4"/><path d="M32 30H12M12 30l5-4M12 30l5 4"/><path d="M4 22h32" stroke-dasharray="2 4"/>',
-"END_MATCH":'<circle cx="20" cy="22" r="14"/><path d="M20 12v10l7 5"/><path d="M20 4v4"/>',
+    "PASS": '<circle cx="20" cy="26" r="6"/><path d="M4 14h18M8 9h14"/>',
+    "INTERCEPTION": '<path d="M4 24h20"/><path d="M18 18l6 6-6 6"/><path d="M28 10v28"/>',
+    "DRIBBLE": '<path d="M4 34c6 0 6-10 12-10s6 10 12 10"/><circle cx="32" cy="12" r="5"/>',
+    "TACKLE": '<path d="M4 32h14l4-8"/><path d="M4 32l2 6h12"/><circle cx="31" cy="27" r="6"/>',
+    "SHOT_GOAL": '<circle cx="14" cy="24" r="6"/><path d="M26 12h12v24H26z"/><path d="M32 12v24M26 24h12"/>',
+    "GOAL_KEEPER": '<path d="M10 34V18a4 4 0 018 0v-4a3 3 0 016 0v4a3 3 0 016 0v16z"/><path d="M10 34h20"/>',
+    "SUPER_SHOT": '<circle cx="26" cy="22" r="7"/><path d="M4 12l8 4-8 4M4 26l10 3-10 3"/><path d="M36 10l-4 6h5l-5 8"/>',
+    "BLOCK_SAVE": '<path d="M8 36V22a3 3 0 016 0v-6a3 3 0 016 0v6"/><circle cx="30" cy="14" r="6"/><path d="M20 22h6"/>',
+    "ASSIST": '<path d="M4 34c4-16 16-22 28-22"/><path d="M26 8l6 4-6 4"/><circle cx="8" cy="34" r="4"/>',
+    "GOAL": '<path d="M6 12h28v24H6z"/><path d="M14 12v24M22 12v24M30 12v24M6 20h28M6 28h28"/><circle cx="20" cy="24" r="5"/>',
+    "PENALTY": '<circle cx="20" cy="14" r="6"/><circle cx="20" cy="34" r="2"/><path d="M20 20v10" stroke-dasharray="3 3"/>',
+    "FOUL": '<path d="M8 18h16l8-4v14l-8-4H8z"/><path d="M8 18a6 6 0 000 6"/><path d="M32 8l4-4M36 14h6"/>',
+    "OFFSIDE": '<path d="M12 8v32"/><path d="M12 10l20 5-20 5z"/>',
+    "BLOCK": '<path d="M10 10v28M20 10v28M30 10v28"/><path d="M4 20h32"/>',
+    "BLOCK_SHOT": '<path d="M6 36c8-2 12-10 12-18"/><path d="M18 18l8 4"/><circle cx="32" cy="14" r="6"/>',
+    "OWN_GOAL": '<path d="M6 12h28v24H6z"/><path d="M14 12v24M22 12v24M30 12v24"/><path d="M34 24H16"/><path d="M22 18l-6 6 6 6"/>',
+    "CHAIN": '<path d="M6 16h14M20 16l-5-4M20 16l-5 4"/><path d="M34 30H20M20 30l5-4M20 30l5 4"/>',
+    "VAR": '<path d="M6 10h28v20H6z"/><path d="M16 34h12"/><path d="M17 16l8 4-8 4z"/>',
+    "RESHUFFLE": '<path d="M8 14h20M28 14l-5-4M28 14l-5 4"/><path d="M32 30H12M12 30l5-4M12 30l5 4"/><path d="M4 22h32" stroke-dasharray="2 4"/>',
+    "END_MATCH": '<circle cx="20" cy="22" r="14"/><path d="M20 12v10l7 5"/><path d="M20 4v4"/>',
 }
 
 # --- the deck ----------------------------------------------------------------
 # ar: Arabic name · en: Latin name · line: commentary voice · rule: mechanics
 C = {
-"PASS":       ("باص","PASS","attack","الكرة تتنقل بينهم بهدوء... مفيش أي استعجال.","يتلغى بـ اعتراض · تسلل · بلوك · فاول"),
-"INTERCEPTION":("اعتراض","INTERCEPTION","defense","ويقطعها!! في اللحظة المناسبة تمامًا!","يوقف باص وأسيست · بياخد الاستحواذ"),
-"DRIBBLE":    ("مراوغة","DRIBBLE","attack","يراوغ الأول... والتاني!! والمدافع على الأرض!","يتلغى بـ تدخل · فاول"),
-"TACKLE":     ("تدخل","TACKLE","defense","تدخل حاسم! الكرة أولًا ثم اللاعب!","يوقف مراوغة · بياخد الاستحواذ"),
-"SHOT_GOAL":  ("شوطة","SHOT GOAL","attack","يسدد!! الكرة في الشبااااك!!","نجحت = هدف · لازم تكون آخر كارت في السلسلة"),
-"GOAL_KEEPER":("حارس مرمى","GOAL KEEPER","defense","الحااارس!! ينقذ فريقه من هدف محقق!","يوقف شوطة · الاستحواذ محايد"),
-"SUPER_SHOT": ("سوبر شوط","SUPER SHOT","rare","قذيفة!!! والحارس لم يتحرك من مكانه!","مالوش رد غير Block Save · ولا الفاول بيلغيه"),
-"BLOCK_SAVE": ("صد سوبر شوط","BLOCK SAVE","rare","يبعدها بأطراف أصابعه!! إنقاذ كان مستحيلًا!","الرد الوحيد على سوبر شوط · الاستحواذ محايد"),
-"ASSIST":     ("أسيست","ASSIST","attack","تمريرة سحرية!! تشق الدفاع نصفين!","2v2 · نجح؟ الاستحواذ لزميلك ويفتح كارت الجول"),
-"GOAL":       ("جول","GOAL","attack","جوووول!! يا جماهير أون جول!! الشباك تهتز!","2v2 · بعد أسيست زميلك بس · يتلغى بـ تسلل·VAR·أون جول"),
-"PENALTY":    ("بنالتي","PENALTY","rare","الحكم يشير إلى علامة الجزاء!! لا جدال فيها!","العبها بعد فاول عليك = هدف · يتلغى بـ أون جول أو VAR"),
-"FOUL":       ("فاول","FOUL","defense","خطأ واضح ومتعمد! أوقف الهجمة بأي ثمن!","يوقف باص·مراوغة·أسيست بس · الاستحواذ يرجع للمهاجم"),
-"OFFSIDE":    ("تسلل","OFFSIDE","defense","الراية مرفوعة! سابق للكرة بخطوة كاملة!","يوقف باص·أسيست·شوطة·جول · بياخد الاستحواذ"),
-"BLOCK":      ("بلوك","BLOCK","defense","تصدى لها بجسده! والكرة تضيع بين الجميع!","مود الحظ بس · يوقف باص وأسيست · بلا استحواذ"),
-"BLOCK_SHOT": ("صد تسديدة","BLOCK SHOT","defense","يرتمي أمام الكرة!! ويمنع هدفًا محققًا!","يوقف شوطة · الاستحواذ محايد"),
-"OWN_GOAL":   ("هدف عكسي","OWN GOAL","rare","لااااا!! في شباكه!! كارثة بكل المقاييس!","النقطة تتحسب لك · يشتغل ضد شوطة·جول·بنالتي"),
-"CHAIN":      ("استخلاص","CHAIN","special","يستخلصها!! وينهي الهجمة قبل أن تبدأ!","على كروت البناء بس · مبيلغيش أي كارت بيسجل"),
-"VAR":        ("في إيه آر","VAR","special","الحكم يتوجه إلى الشاشة... الملعب كله واقف!","راجع هدف·بنالتي·تسلل · وش يأكد وضهر يلغي · مرة لكل حدث"),
-"RESHUFFLE":  ("ريشافل","RESHUFFLE","special","تغيير تكتيكي! المدرب غير مرتاح!","بدّل كارتين من الديك · أو 2 مع زميلك في 2v2"),
-"END_MATCH":  ("نهاية الماتش","END MATCH","special","صافرة النهاية!! ولا وقت بدل ضائع لأحد!","الماتش يخلص فورًا · متعادل؟ الفوز لخصمك"),
+    "PASS": (
+        "باص",
+        "PASS",
+        "attack",
+        "الكرة تتنقل بينهم بهدوء... مفيش أي استعجال.",
+        "يتلغى بـ اعتراض · تسلل · بلوك · فاول",
+    ),
+    "INTERCEPTION": (
+        "اعتراض",
+        "INTERCEPTION",
+        "defense",
+        "ويقطعها!! في اللحظة المناسبة تمامًا!",
+        "يوقف باص وأسيست · بياخد الاستحواذ",
+    ),
+    "DRIBBLE": (
+        "مراوغة",
+        "DRIBBLE",
+        "attack",
+        "يراوغ الأول... والتاني!! والمدافع على الأرض!",
+        "يتلغى بـ تدخل · فاول",
+    ),
+    "TACKLE": (
+        "تدخل",
+        "TACKLE",
+        "defense",
+        "تدخل حاسم! الكرة أولًا ثم اللاعب!",
+        "يوقف مراوغة · بياخد الاستحواذ",
+    ),
+    "SHOT_GOAL": (
+        "شوطة",
+        "SHOT GOAL",
+        "attack",
+        "يسدد!! الكرة في الشبااااك!!",
+        "نجحت = هدف · لازم تكون آخر كارت في السلسلة",
+    ),
+    "GOAL_KEEPER": (
+        "حارس مرمى",
+        "GOAL KEEPER",
+        "defense",
+        "الحااارس!! ينقذ فريقه من هدف محقق!",
+        "يوقف شوطة · الاستحواذ محايد",
+    ),
+    "SUPER_SHOT": (
+        "سوبر شوط",
+        "SUPER SHOT",
+        "rare",
+        "قذيفة!!! والحارس لم يتحرك من مكانه!",
+        "مالوش رد غير Block Save · ولا الفاول بيلغيه",
+    ),
+    "BLOCK_SAVE": (
+        "صد سوبر شوط",
+        "BLOCK SAVE",
+        "rare",
+        "يبعدها بأطراف أصابعه!! إنقاذ كان مستحيلًا!",
+        "الرد الوحيد على سوبر شوط · الاستحواذ محايد",
+    ),
+    "ASSIST": (
+        "أسيست",
+        "ASSIST",
+        "attack",
+        "تمريرة سحرية!! تشق الدفاع نصفين!",
+        "2v2 · نجح؟ الاستحواذ لزميلك ويفتح كارت الجول",
+    ),
+    "GOAL": (
+        "جول",
+        "GOAL",
+        "attack",
+        "جوووول!! يا جماهير أون جول!! الشباك تهتز!",
+        "2v2 · بعد أسيست زميلك بس · يتلغى بـ تسلل·VAR·أون جول",
+    ),
+    "PENALTY": (
+        "بنالتي",
+        "PENALTY",
+        "rare",
+        "الحكم يشير إلى علامة الجزاء!! لا جدال فيها!",
+        "العبها بعد فاول عليك = هدف · يتلغى بـ أون جول أو VAR",
+    ),
+    "FOUL": (
+        "فاول",
+        "FOUL",
+        "defense",
+        "خطأ واضح ومتعمد! أوقف الهجمة بأي ثمن!",
+        "يوقف باص·مراوغة·أسيست بس · الاستحواذ يرجع للمهاجم",
+    ),
+    "OFFSIDE": (
+        "تسلل",
+        "OFFSIDE",
+        "defense",
+        "الراية مرفوعة! سابق للكرة بخطوة كاملة!",
+        "يوقف باص·أسيست·شوطة·جول · بياخد الاستحواذ",
+    ),
+    "BLOCK": (
+        "بلوك",
+        "BLOCK",
+        "defense",
+        "تصدى لها بجسده! والكرة تضيع بين الجميع!",
+        "مود الحظ بس · يوقف باص وأسيست · بلا استحواذ",
+    ),
+    "BLOCK_SHOT": (
+        "صد تسديدة",
+        "BLOCK SHOT",
+        "defense",
+        "يرتمي أمام الكرة!! ويمنع هدفًا محققًا!",
+        "يوقف شوطة · الاستحواذ محايد",
+    ),
+    "OWN_GOAL": (
+        "هدف عكسي",
+        "OWN GOAL",
+        "rare",
+        "لااااا!! في شباكه!! كارثة بكل المقاييس!",
+        "النقطة تتحسب لك · يشتغل ضد شوطة·جول·بنالتي",
+    ),
+    "CHAIN": (
+        "استخلاص",
+        "CHAIN",
+        "special",
+        "يستخلصها!! وينهي الهجمة قبل أن تبدأ!",
+        "على كروت البناء بس · مبيلغيش أي كارت بيسجل",
+    ),
+    "VAR": (
+        "في إيه آر",
+        "VAR",
+        "special",
+        "الحكم يتوجه إلى الشاشة... الملعب كله واقف!",
+        "راجع هدف·بنالتي·تسلل · وش يأكد وضهر يلغي · مرة لكل حدث",
+    ),
+    "RESHUFFLE": (
+        "ريشافل",
+        "RESHUFFLE",
+        "special",
+        "تغيير تكتيكي! المدرب غير مرتاح!",
+        "بدّل كارتين من الديك · أو 2 مع زميلك في 2v2",
+    ),
+    "END_MATCH": (
+        "نهاية الماتش",
+        "END MATCH",
+        "special",
+        "صافرة النهاية!! ولا وقت بدل ضائع لأحد!",
+        "الماتش يخلص فورًا · متعادل؟ الفوز لخصمك",
+    ),
 }
 
 CUT = "outline:0.2mm dashed rgba(255,255,255,.18);outline-offset:-0.1mm"
@@ -135,45 +255,55 @@ body{{background:#3a3d3b;font-family:'Cairo',sans-serif;padding:24px}}
 """
 
 
-def icon(face, size=13, op=.92):
+def icon(face, size=13, op=0.92):
     ink = INK[C[face][2]]
-    return (f'<svg class="ico" width="{size}mm" height="{size}mm" viewBox="0 0 40 44" '
-            f'fill="none" stroke="{ink}" stroke-width="2.4" stroke-linecap="round" '
-            f'stroke-linejoin="round" opacity="{op}">{I[face]}</svg>')
+    return (
+        f'<svg class="ico" width="{size}mm" height="{size}mm" viewBox="0 0 40 44" '
+        f'fill="none" stroke="{ink}" stroke-width="2.4" stroke-linecap="round" '
+        f'stroke-linejoin="round" opacity="{op}">{I[face]}</svg>'
+    )
 
 
 def face_html(f, pos):
     ar, en, kind, line, rule = C[f]
     ink = INK[kind]
     cls = "ar sm" if len(ar) > 9 else "ar"
-    return (f'<div class="face {pos}"><div class="hdr"><div>'
-            f'<div class="en" style="color:{ink}">{en}</div>'
-            f'<div class="{cls}">{ar}</div></div>{icon(f)}</div>'
-            f'<div><div class="line">{line}</div>'
-            f'<div class="rule">{rule}</div></div></div>')
+    return (
+        f'<div class="face {pos}"><div class="hdr"><div>'
+        f'<div class="en" style="color:{ink}">{en}</div>'
+        f'<div class="{cls}">{ar}</div></div>{icon(f)}</div>'
+        f'<div><div class="line">{line}</div>'
+        f'<div class="rule">{rule}</div></div></div>'
+    )
 
 
 def split_card(a, d):
-    return (f'<div class="card"><div class="grain"></div>{face_html(a,"top")}'
-            f'<div class="mid"><div class="spot" style="color:{INK[C[d][2]]}">VS</div></div>'
-            f'{face_html(d,"bot")}</div>')
+    return (
+        f'<div class="card"><div class="grain"></div>{face_html(a, "top")}'
+        f'<div class="mid"><div class="spot" style="color:{INK[C[d][2]]}">VS</div></div>'
+        f"{face_html(d, 'bot')}</div>"
+    )
 
 
 def full_card(f):
     ar, en, kind, line, rule = C[f]
     ink = INK[kind]
-    return (f'<div class="card"><div class="grain"></div><div class="full">'
-            f'<div class="en" style="color:{ink}">{en}</div>'
-            f'<div class="ar">{ar}</div>{icon(f, 21, .95)}'
-            f'<div class="line">{line}</div><div class="rule">{rule}</div></div>'
-            f'<div class="tag">OWN GOAL</div></div>')
+    return (
+        f'<div class="card"><div class="grain"></div><div class="full">'
+        f'<div class="en" style="color:{ink}">{en}</div>'
+        f'<div class="ar">{ar}</div>{icon(f, 21, 0.95)}'
+        f'<div class="line">{line}</div><div class="rule">{rule}</div></div>'
+        f'<div class="tag">OWN GOAL</div></div>'
+    )
 
 
 def back_card():
-    return ('<div class="card back"><div class="grain"></div>'
-            f'<svg width="26mm" height="26mm" viewBox="0 0 40 44" fill="none" stroke="{CHALK}" '
-            f'stroke-width="2" stroke-linecap="round" opacity=".85">{I["OWN_GOAL"]}</svg>'
-            '<div class="ar">أون جول</div><div class="en">OWN GOAL</div></div>')
+    return (
+        '<div class="card back"><div class="grain"></div>'
+        f'<svg width="26mm" height="26mm" viewBox="0 0 40 44" fill="none" stroke="{CHALK}" '
+        f'stroke-width="2" stroke-linecap="round" opacity=".85">{I["OWN_GOAL"]}</svg>'
+        '<div class="ar">أون جول</div><div class="en">OWN GOAL</div></div>'
+    )
 
 
 # =============================================================================
@@ -192,8 +322,7 @@ def back_card():
 PAPER = "#F2E8D2"
 INK_1 = "#F1503F"
 INK_2 = "#1B4E9B"
-FAMILY_INK = {"attack": INK_1, "defense": INK_2, "special": INK_2,
-              "rare": INK_1}
+FAMILY_INK = {"attack": INK_1, "defense": INK_2, "special": INK_2, "rare": INK_1}
 
 
 def css_riso(cutguide=CUT):
@@ -261,10 +390,14 @@ body{{background:#6E6A5E;font-family:'Cairo',sans-serif;padding:24px}}
 
 def icon_riso(face, size=13):
     """Drawn twice: ink 2 on register, ink 1 knocked half a millimetre off."""
+
     def one(colour):
-        return (f'<svg width="{size}mm" height="{size}mm" viewBox="0 0 40 44" fill="none" '
-                f'stroke="{colour}" stroke-width="2.6" stroke-linecap="round" '
-                f'stroke-linejoin="round">{I[face]}</svg>')
+        return (
+            f'<svg width="{size}mm" height="{size}mm" viewBox="0 0 40 44" fill="none" '
+            f'stroke="{colour}" stroke-width="2.6" stroke-linecap="round" '
+            f'stroke-linejoin="round">{I[face]}</svg>'
+        )
+
     return f'<div class="reg">{one(INK_2)}{one(INK_1)}</div>'
 
 
@@ -276,18 +409,22 @@ def face_riso(f, pos):
     cls = "ar sm" if len(ar) > 9 else "ar"
     if hot:
         cls += " hot"
-    return (f'<div class="face {pos}">'
-            f'<div class="{band}" style="top:0"><span class="en">{en}</span></div>'
-            f'<div class="{sc}" style="top:9mm"></div>'
-            f'<div class="fbody"><div class="{cls}">{ar}</div>{icon_riso(f)}</div>'
-            f'<div class="ftext"><div class="line">{line}</div>'
-            f'<div class="rule">{rule}</div></div></div>')
+    return (
+        f'<div class="face {pos}">'
+        f'<div class="{band}" style="top:0"><span class="en">{en}</span></div>'
+        f'<div class="{sc}" style="top:9mm"></div>'
+        f'<div class="fbody"><div class="{cls}">{ar}</div>{icon_riso(f)}</div>'
+        f'<div class="ftext"><div class="line">{line}</div>'
+        f'<div class="rule">{rule}</div></div></div>'
+    )
 
 
 def split_riso(a, d):
-    return (f'<div class="card">{face_riso(a,"top")}'
-            f'<div class="mid"><div class="spot">VS</div></div>'
-            f'{face_riso(d,"bot")}<div class="tooth"></div></div>')
+    return (
+        f'<div class="card">{face_riso(a, "top")}'
+        f'<div class="mid"><div class="spot">VS</div></div>'
+        f'{face_riso(d, "bot")}<div class="tooth"></div></div>'
+    )
 
 
 def full_riso(f):
@@ -297,23 +434,27 @@ def full_riso(f):
     sc = "bandsc" if hot else "bandsc b2"
     tag = '<div class="rare">rare · one of a kind</div>' if kind == "rare" else ""
     cls = "ar hot" if hot else "ar"
-    return (f'<div class="card"><div class="{band}" style="top:0">'
-            f'<span class="en">{en}</span></div>'
-            f'<div class="{sc}" style="top:9mm"></div>{tag}'
-            f'<div class="full"><div class="{cls}">{ar}</div>{icon_riso(f, 22)}'
-            f'<div class="line">{line}</div><div class="rule">{rule}</div></div>'
-            f'<div class="stripe" style="bottom:0"></div><div class="tooth"></div></div>')
+    return (
+        f'<div class="card"><div class="{band}" style="top:0">'
+        f'<span class="en">{en}</span></div>'
+        f'<div class="{sc}" style="top:9mm"></div>{tag}'
+        f'<div class="full"><div class="{cls}">{ar}</div>{icon_riso(f, 22)}'
+        f'<div class="line">{line}</div><div class="rule">{rule}</div></div>'
+        f'<div class="stripe" style="bottom:0"></div><div class="tooth"></div></div>'
+    )
 
 
 def back_riso():
-    return ('<div class="card back"><div class="stripe" style="top:0"></div>'
-            f'<div class="reg">'
-            f'<svg width="26mm" height="26mm" viewBox="0 0 40 44" fill="none" stroke="{INK_2}" '
-            f'stroke-width="2.2" stroke-linecap="round">{I["OWN_GOAL"]}</svg>'
-            f'<svg width="26mm" height="26mm" viewBox="0 0 40 44" fill="none" stroke="{INK_1}" '
-            f'stroke-width="2.2" stroke-linecap="round">{I["OWN_GOAL"]}</svg></div>'
-            '<div class="ar">أون جول</div><div class="en">OWN GOAL</div>'
-            '<div class="stripe" style="bottom:0"></div><div class="tooth"></div></div>')
+    return (
+        '<div class="card back"><div class="stripe" style="top:0"></div>'
+        f'<div class="reg">'
+        f'<svg width="26mm" height="26mm" viewBox="0 0 40 44" fill="none" stroke="{INK_2}" '
+        f'stroke-width="2.2" stroke-linecap="round">{I["OWN_GOAL"]}</svg>'
+        f'<svg width="26mm" height="26mm" viewBox="0 0 40 44" fill="none" stroke="{INK_1}" '
+        f'stroke-width="2.2" stroke-linecap="round">{I["OWN_GOAL"]}</svg></div>'
+        '<div class="ar">أون جول</div><div class="en">OWN GOAL</div>'
+        '<div class="stripe" style="bottom:0"></div><div class="tooth"></div></div>'
+    )
 
 
 # =============================================================================
@@ -331,15 +472,17 @@ def back_riso():
 #      real mechanical rule under each one, and the Arabic card name added.
 
 ST = {
-    "attack":  ("#D7263D", "#8B0000", "#FF6B35", "#2a0a0a", "#1a0505", "#0d0000", "ATTACK"),
+    "attack": ("#D7263D", "#8B0000", "#FF6B35", "#2a0a0a", "#1a0505", "#0d0000", "ATTACK"),
     "defense": ("#1B4F72", "#0D2137", "#2ECC71", "#040e1a", "#081525", "#030b14", "DEFENSE"),
     "special": ("#7D3C98", "#4A235A", "#F1C40F", "#130820", "#0e0518", "#070311", "SPECIAL"),
-    "rare":    ("#B8860B", "#6B4E00", "#F1C40F", "#241705", "#170e02", "#0d0700", "RARE"),
+    "rare": ("#B8860B", "#6B4E00", "#F1C40F", "#241705", "#170e02", "#0d0700", "RARE"),
 }
-NOISE = ("url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'"
-         "%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' "
-         "numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' "
-         "height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E\")")
+NOISE = (
+    "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'"
+    "%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' "
+    "numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' "
+    "height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E\")"
+)
 
 QTY = {}
 for _spec in RULES["physical_cards"]:
@@ -419,51 +562,61 @@ body{{background:#111;font-family:'Cairo',sans-serif;color:#F0E6D3;padding:20px}
 
 def icon_street(face, kind, size=11):
     glow = ST[kind][2]
-    return (f'<svg width="{size}mm" height="{size}mm" viewBox="0 0 40 44" fill="none" '
-            f'stroke="{glow}" stroke-width="2.6" stroke-linecap="round" '
-            f'stroke-linejoin="round">{I[face]}</svg>')
+    return (
+        f'<svg width="{size}mm" height="{size}mm" viewBox="0 0 40 44" fill="none" '
+        f'stroke="{glow}" stroke-width="2.6" stroke-linecap="round" '
+        f'stroke-linejoin="round">{I[face]}</svg>'
+    )
 
 
 def half_street(f, pos):
     ar, en, kind, line, rule = C[f]
-    return (f'<div class="half {pos}">'
-            f'<div class="hdr"><span class="badge">{ST[kind][6]}</span>'
-            f'<span class="qty">x{QTY[f]}</span></div>'
-            f'<div class="title">{en}</div><div class="title-ar">{ar}</div>'
-            f'<div class="divider"></div>'
-            f'<div class="sbody"><div class="halo">{icon_street(f, kind, 9)}</div></div>'
-            f'<div class="footer"><div class="desc">{line}</div>'
-            f'<div class="rule">{rule}</div></div>'
-            f'<div class="accent"></div></div>')
+    return (
+        f'<div class="half {pos}">'
+        f'<div class="hdr"><span class="badge">{ST[kind][6]}</span>'
+        f'<span class="qty">x{QTY[f]}</span></div>'
+        f'<div class="title">{en}</div><div class="title-ar">{ar}</div>'
+        f'<div class="divider"></div>'
+        f'<div class="sbody"><div class="halo">{icon_street(f, kind, 9)}</div></div>'
+        f'<div class="footer"><div class="desc">{line}</div>'
+        f'<div class="rule">{rule}</div></div>'
+        f'<div class="accent"></div></div>'
+    )
 
 
 def split_street(a, d):
-    return (f'<div class="card split">{half_street(a,"top")}'
-            f'<div class="split-divider"></div>{half_street(d,"bot")}</div>')
+    return (
+        f'<div class="card split">{half_street(a, "top")}'
+        f'<div class="split-divider"></div>{half_street(d, "bot")}</div>'
+    )
 
 
 def full_street(f):
     ar, en, kind, line, rule = C[f]
-    return (f'<div class="card {kind}"><div class="hdr">'
-            f'<span class="badge">{ST[kind][6]}</span><span class="qty">x{QTY[f]}</span></div>'
-            f'<div class="title">{en}</div><div class="title-ar">{ar}</div>'
-            f'<div class="divider"></div>'
-            f'<div class="iconzone"><div class="halo">{icon_street(f, kind, 12)}</div></div>'
-            f'<div class="footer"><div class="desc">{line}</div>'
-            f'<div class="rule">{rule}</div></div><div class="botbar"></div></div>')
+    return (
+        f'<div class="card {kind}"><div class="hdr">'
+        f'<span class="badge">{ST[kind][6]}</span><span class="qty">x{QTY[f]}</span></div>'
+        f'<div class="title">{en}</div><div class="title-ar">{ar}</div>'
+        f'<div class="divider"></div>'
+        f'<div class="iconzone"><div class="halo">{icon_street(f, kind, 12)}</div></div>'
+        f'<div class="footer"><div class="desc">{line}</div>'
+        f'<div class="rule">{rule}</div></div><div class="botbar"></div></div>'
+    )
 
 
 def back_street():
-    return ('<div class="card special back">'
-            '<div class="iconzone"><div class="halo">'
-            + icon_street("OWN_GOAL", "special", 16) +
-            '</div></div><div class="title">OWN GOAL</div>'
-            '<div class="title-ar">أون جول</div><div class="botbar"></div></div>')
+    return (
+        '<div class="card special back">'
+        '<div class="iconzone"><div class="halo">'
+        + icon_street("OWN_GOAL", "special", 16)
+        + '</div></div><div class="title">OWN GOAL</div>'
+        '<div class="title-ar">أون جول</div><div class="botbar"></div></div>'
+    )
 
 
 STYLES = {
-    "chalk":  (css, split_card, full_card, back_card),
-    "riso":   (css_riso, split_riso, full_riso, back_riso),
+    "chalk": (css, split_card, full_card, back_card),
+    "riso": (css_riso, split_riso, full_riso, back_riso),
     "street": (css_street, split_street, full_street, back_street),
 }
 
@@ -475,24 +628,27 @@ def deck_cards(style="street"):
     for spec in RULES["physical_cards"]:
         faces = spec["faces"]
         for _ in range(spec["copies"]):
-            out.append(split(faces[0], faces[1]) if spec["type"] == "split"
-                       else full(faces[0]))
+            out.append(split(faces[0], faces[1]) if spec["type"] == "split" else full(faces[0]))
     return out
 
 
 def page(title, body, cutguide=CUT, style="street"):
     sheet_css = STYLES[style][0](cutguide)
-    return (f'<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8">'
-            f'<title>{title}</title><style>{sheet_css}</style></head>'
-            f'<body>{body}</body></html>')
+    return (
+        f'<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8">'
+        f"<title>{title}</title><style>{sheet_css}</style></head>"
+        f"<body>{body}</body></html>"
+    )
 
 
 def build_print(cutguide=CUT, style="street"):
     cards = deck_cards(style) + [STYLES[style][3]()]
     sheets = []
     for i in range(0, len(cards), 9):
-        chunk = cards[i:i + 9]
-        chunk += ['<div class="card" style="background:#fff;outline:none"></div>'] * (9 - len(chunk))
+        chunk = cards[i : i + 9]
+        chunk += ['<div class="card" style="background:#fff;outline:none"></div>'] * (
+            9 - len(chunk)
+        )
         sheets.append('<div class="sheet">' + "".join(chunk) + "</div>")
     return page("OWN GOAL — print sheets", "".join(sheets), cutguide, style)
 
@@ -507,9 +663,11 @@ def build_preview(style="street"):
         (full("FOUL"), "full · defense"),
         (back(), "card back"),
     ]
-    body = '<div class="preview">' + "".join(
-        f'<div class="prev-card">{c}<div class="lbl">{l}</div></div>' for c, l in picks
-    ) + "</div>"
+    body = (
+        '<div class="preview">'
+        + "".join(f'<div class="prev-card">{c}<div class="lbl">{l}</div></div>' for c, l in picks)
+        + "</div>"
+    )
     return page("OWN GOAL — design preview", body, "", style)
 
 
@@ -517,14 +675,19 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(ROOT / "out"))
     ap.add_argument("--style", default="street", choices=["street", "riso", "chalk"])
-    ap.add_argument("--final", action="store_true",
-                    help="drop the dashed cut guides (use once you move to a real printer)")
+    ap.add_argument(
+        "--final",
+        action="store_true",
+        help="drop the dashed cut guides (use once you move to a real printer)",
+    )
     a = ap.parse_args()
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     (out / f"owngoal-cards-preview-{a.style}.html").write_text(
-        build_preview(a.style), encoding="utf-8")
+        build_preview(a.style), encoding="utf-8"
+    )
     (out / f"owngoal-cards-print-{a.style}.html").write_text(
-        build_print("" if a.final else CUT, a.style), encoding="utf-8")
+        build_print("" if a.final else CUT, a.style), encoding="utf-8"
+    )
     n = len(deck_cards(a.style))
     print(f"{n} cards + 1 back written to {out} in {a.style} style")

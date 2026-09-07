@@ -1,0 +1,20 @@
+[project]
+name = "owngol"
+version = "0.1.0"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["engine"]
+
+[tool.ruff.lint.per-file-ignores]
+# SVG data, Arabic text, and HTML templates are naturally long
+"scripts/make_cards.py" = ["E501", "E741"]
+"scripts/build_offline.py" = ["E501", "E402", "E701", "E702"]
+"scripts/simulate.py" = ["E501"]
+"scripts/validate_rules.py" = ["E501"]

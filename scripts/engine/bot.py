@@ -15,7 +15,13 @@ if TYPE_CHECKING:
     from .game import Game
 
 PRIORITY: list[str] = [
-    "SUPER_SHOT", "PENALTY", "SHOT_GOAL", "GOAL", "DRIBBLE", "PASS", "ASSIST",
+    "SUPER_SHOT",
+    "PENALTY",
+    "SHOT_GOAL",
+    "GOAL",
+    "DRIBBLE",
+    "PASS",
+    "ASSIST",
 ]
 
 
@@ -76,8 +82,7 @@ def bot_action(game: Game, seat_i: int, policy: str = "SHOOTER") -> dict | None:
         if em and game.score[game.team(seat_i)] > game.score[1 - game.team(seat_i)]:
             return em[0]
         # dead hand: reshuffle rather than concede
-        rs = [a for a in acts if a.get("face") == "RESHUFFLE"
-              and a.get("swap") == "deck"]
+        rs = [a for a in acts if a.get("face") == "RESHUFFLE" and a.get("swap") == "deck"]
         return rs[0] if rs else acts[0]
 
     em = [a for a in acts if a.get("face") == "END_MATCH"]

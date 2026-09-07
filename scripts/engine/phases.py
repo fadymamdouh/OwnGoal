@@ -12,8 +12,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from .rules_loader import (
+    ACTIONS,
     COUNTERS,
     DEFENSE_FACES,
+    EVENTS,
+    PHASES,
     POSSESSION,
     SHOT_STAGE,
 )
@@ -31,28 +34,28 @@ def _do_draw(self: Game, seat_i: int, action: dict) -> None:
         c = self._draw()
         if c:
             seat.hand.append(c)
-    self._emit("drew", seat=seat_i, n=n)
-    if self.phase == "attack_draw":
+    self._emit(EVENTS.DREW, seat=seat_i, n=n)
+    if self.phase == PHASES.ATTACK_DRAW:
         self.owed = n
-        self.phase = "attack"
+        self.phase = PHASES.ATTACK
         if not self._playable_attack_faces(seat, self.owed <= 1):
             self._concede()
     else:
         self.def_owed = n
-        self.phase = "defense"
+        self.phase = PHASES.DEFENSE
 
 
 # ── attack ──────────────────────────────────────────────────────────
 
 def _do_attack(self: Game, seat_i: int, action: dict) -> None:
     seat = self.seats[seat_i]
-    if action["type"] == "concede_possession":
+    if action["type"] == ACTIONS.CONCEDE_POSSESSION:
         self._concede()
         return
     card = seat.find(action["card_id"])
     face = action["face"]
 
-    if action["type"] == "special":
+    if action["type"] == ACTIONS.SPECIAL:
         self._burn(seat, card)
         if face == "END_MATCH":
             self._end_match(seat_i)
@@ -63,7 +66,7 @@ def _do_attack(self: Game, seat_i: int, action: dict) -> None:
     self._burn(seat, card)
     self.chain.append(face)
     self.owed -= 1
-    self._emit("attack_played", seat=seat_i, face=face)
+    self._emit(EVENTS.ATTACK_PLAYED, seat=seat_i, face=face)
     if face == "PENALTY":
         seat.fouled = False
 
@@ -75,7 +78,7 @@ def _do_attack(self: Game, seat_i: int, action: dict) -> None:
         return
 
     if self._strategy() and self.owed > 0:
-        self._emit("chain_passed", face=face)   # middle cards go unanswered
+        self._emit(EVENTS.CHAIN_PASSED, face=face)   # middle cards go unanswered
         if not self._playable_attack_faces(seat, self.owed <= 1):
             self._burn_owed(seat_i, self.owed)
             self.owed = 0
@@ -101,10 +104,10 @@ def _do_defense(self: Game, seat_i: int, action: dict) -> None:
     # react_own_goal path, so playing it directly is no longer a trap.
     # (rulebook: Own Goal)
     if face == "OWN_GOAL" and answers:
-        self._emit("defense_played", seat=seat_i, face=face, stopped=False)
+        self._emit(EVENTS.DEFENSE_PLAYED, seat=seat_i, face=face, stopped=False)
         self._burn_owed(seat_i, self.def_owed)
         self.def_owed = 0
-        self._emit("own_goal_played", seat=seat_i)
+        self._emit(EVENTS.OWN_GOAL_PLAYED, seat=seat_i)
         self._score(seat_i, "OWN_GOAL", conceder=self.possession)
         return
 
@@ -116,8 +119,8 @@ def _do_defense(self: Game, seat_i: int, action: dict) -> None:
         self.def_owed = 0
         flip = self.rng.choice(["heads", "tails"])
         overturned = flip == "tails"
-        self._emit("var", seat=seat_i, flip=flip, overturned=overturned, reviewing=target)
-        self._emit("defense_played", seat=seat_i, face=face,
+        self._emit(EVENTS.VAR, seat=seat_i, flip=flip, overturned=overturned, reviewing=target)
+        self._emit(EVENTS.DEFENSE_PLAYED, seat=seat_i, face=face,
                    stopped=overturned)
         if overturned:
             self._resolve_stopped("VAR", seat_i)
@@ -127,7 +130,7 @@ def _do_defense(self: Game, seat_i: int, action: dict) -> None:
         return
 
     stopped = answers
-    self._emit("defense_played", seat=seat_i, face=face, stopped=stopped)
+    self._emit(EVENTS.DEFENSE_PLAYED, seat=seat_i, face=face, stopped=stopped)
 
     if stopped:
         self._resolve_stopped(face, seat_i)
@@ -140,9 +143,9 @@ def _do_defense(self: Game, seat_i: int, action: dict) -> None:
     if target in SHOT_STAGE:
         self._shot_succeeded(seat_i)
     else:
-        self._emit("stage_passed", face=target)
+        self._emit(EVENTS.STAGE_PASSED, face=target)
         self._refill_all()
-        self.phase = "attack" if not self._strategy() else "attack_draw"
+        self.phase = PHASES.ATTACK if not self._strategy() else "attack_draw"
         if not self._strategy():
             c = self._draw()
             if c:
@@ -156,13 +159,13 @@ def _do_defense(self: Game, seat_i: int, action: dict) -> None:
 # ── reaction: own goal ──────────────────────────────────────────────
 
 def _do_own_goal(self: Game, seat_i: int, action: dict) -> None:
-    if action["type"] == "pass":
+    if action["type"] == ACTIONS.PASS:
         self.pending = None
         self._score(self.possession, self.chain[-1])
         return
     seat = self.seats[seat_i]
     self._burn(seat, seat.find(action["card_id"]))
-    self._emit("own_goal_played", seat=seat_i)
+    self._emit(EVENTS.OWN_GOAL_PLAYED, seat=seat_i)
     self.pending = None
     self._score(seat_i, "OWN_GOAL", conceder=self.possession)
 
@@ -171,7 +174,7 @@ def _do_own_goal(self: Game, seat_i: int, action: dict) -> None:
 
 def _do_var(self: Game, seat_i: int, action: dict) -> None:
     p = self.pending
-    if action["type"] == "pass":
+    if action["type"] == ACTIONS.PASS:
         self.pending = None
         self._after_goal(p["conceder"])
         return
@@ -179,10 +182,10 @@ def _do_var(self: Game, seat_i: int, action: dict) -> None:
     self._burn(seat, seat.find(action["card_id"]))
     flip = self.rng.choice(["heads", "tails"])
     overturned = flip == "tails"
-    self._emit("var", seat=seat_i, flip=flip, overturned=overturned)
+    self._emit(EVENTS.VAR, seat=seat_i, flip=flip, overturned=overturned)
     if overturned:
         self.score[self.team(p["scorer"])] -= 1
-        self._emit("goal_overturned", scorer=p["scorer"], score=list(self.score))
+        self._emit(EVENTS.GOAL_OVERTURNED, scorer=p["scorer"], score=list(self.score))
     self.pending = None
     self._after_goal(p["conceder"])
 
@@ -193,7 +196,7 @@ def _do_var_offside(self: Game, seat_i: int, action: dict) -> None:
     p = self.pending
     def_seat = p["def_seat"]
     self.pending = None
-    if action.get("type") == "pass":
+    if action.get("type") == ACTIONS.PASS:
         self.no_var_review = True
         self._resolve_stopped("OFFSIDE", def_seat)
         return
@@ -202,18 +205,18 @@ def _do_var_offside(self: Game, seat_i: int, action: dict) -> None:
     self._burn(seat, card)
     flip = self.rng.choice(["heads", "tails"])
     overturned = flip == "tails"
-    self._emit("var", seat=seat_i, flip=flip, overturned=overturned, reviewing="OFFSIDE")
+    self._emit(EVENTS.VAR, seat=seat_i, flip=flip, overturned=overturned, reviewing="OFFSIDE")
     if overturned:
         self.no_var_review = True
         self._resolve_stopped("OFFSIDE", def_seat)
     else:
         self.no_var_review = True
-        self._emit("offside_overturned", seat=seat_i)
+        self._emit(EVENTS.OFFSIDE_OVERTURNED, seat=seat_i)
         self._refill_all()
         if self._strategy():
-            self.phase = "attack_draw"
+            self.phase = PHASES.ATTACK_DRAW
         else:
-            self.phase = "attack"
+            self.phase = PHASES.ATTACK
             c = self._draw()
             if c:
                 self.seats[self.possession].hand.append(c)
@@ -225,5 +228,5 @@ def _do_var_offside(self: Game, seat_i: int, action: dict) -> None:
 def _do_reshuffle_pick(self: Game, seat_i: int, action: dict) -> None:
     p = self.pending
     p["chosen"].append(action["card_id"])
-    self._emit("reshuffle_picked", seat=seat_i, count=len(p["chosen"]))
+    self._emit(EVENTS.RESHUFFLE_PICKED, seat=seat_i, count=len(p["chosen"]))
     self._maybe_finish_picking()

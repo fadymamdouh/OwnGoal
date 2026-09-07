@@ -32,11 +32,12 @@ from rules.json, so they are rules here, not assumptions.
 import argparse
 import json
 import random
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 
-RULES = json.load(open(Path(__file__).resolve().parent.parent /
-                       "references" / "rules.json", encoding="utf-8"))
+RULES = json.load(
+    open(Path(__file__).resolve().parent.parent / "references" / "rules.json", encoding="utf-8")
+)
 
 COUNTERS = {c["defense"]: set(c["stops"]) for c in RULES["counters"]}
 SHOT_LAST = bool(RULES["play_modes"]["STRATEGY"].get("shot_must_be_last"))
@@ -46,13 +47,24 @@ GOALS_TO_WIN = RULES["match"]["goals_to_win"]
 HAND = RULES["match"]["hand_size"]
 
 SHOT_STAGE = {f for f, c in CARDS.items() if c.get("stage") == "shot"}
-BUILD_UP = {f for f, c in CARDS.items()
-            if c.get("class") == "attack" and c.get("stage") != "shot"}
+BUILD_UP = {f for f, c in CARDS.items() if c.get("class") == "attack" and c.get("stage") != "shot"}
 # Preference order when attacking: finish if you can, cheapest build-up otherwise.
 ATTACK_PRIORITY = ["SUPER_SHOT", "PENALTY", "SHOT_GOAL", "GOAL", "DRIBBLE", "PASS", "ASSIST"]
 # What to throw away when forced to defend with nothing useful.
-BURN_ORDER = ["BLOCK", "OFFSIDE", "FOUL", "PASS", "DRIBBLE", "RESHUFFLE",
-              "BLOCK_SHOT", "SHOT_GOAL", "VAR", "OWN_GOAL", "SUPER_SHOT", "END_MATCH"]
+BURN_ORDER = [
+    "BLOCK",
+    "OFFSIDE",
+    "FOUL",
+    "PASS",
+    "DRIBBLE",
+    "RESHUFFLE",
+    "BLOCK_SHOT",
+    "SHOT_GOAL",
+    "VAR",
+    "OWN_GOAL",
+    "SUPER_SHOT",
+    "END_MATCH",
+]
 
 
 class Card:
@@ -91,9 +103,9 @@ class Player:
         self.policy = policy
         self.hand = []
         self.score = 0
-        self.fouled = False       # may play PENALTY
+        self.fouled = False  # may play PENALTY
         self.goal_unlocked = False  # a partner's Assist got through
-        self.built_up = False     # PATIENT already made its build-up this possession
+        self.built_up = False  # PATIENT already made its build-up this possession
 
     def has(self, face):
         return any(face in c.faces for c in self.hand)
@@ -191,12 +203,15 @@ class Match:
 
     def pick_defense(self, p, attack):
         """A valid counter if one is held, preferring counters that win the ball."""
-        valid = [d for d, stops in COUNTERS.items()
-                 if attack in stops and p.has(d) and d != "VAR"]
+        valid = [d for d, stops in COUNTERS.items() if attack in stops and p.has(d) and d != "VAR"]
         if not valid:
             return None
-        valid.sort(key=lambda d: (POSSESSION.get(d, "neutral") != "defender",
-                                  BURN_ORDER.index(d) if d in BURN_ORDER else 99))
+        valid.sort(
+            key=lambda d: (
+                POSSESSION.get(d, "neutral") != "defender",
+                BURN_ORDER.index(d) if d in BURN_ORDER else 99,
+            )
+        )
         return valid[0]
 
     def pick_burn(self, p):
@@ -266,15 +281,17 @@ class Match:
 
         # End Match is only ever correct when your team is ahead.
         for i, p in enumerate(self.players):
-            if p.has("END_MATCH") and \
-                    self.team_score[self.team(i)] > self.team_score[1 - self.team(i)]:
+            if (
+                p.has("END_MATCH")
+                and self.team_score[self.team(i)] > self.team_score[1 - self.team(i)]
+            ):
                 self.burn(p.take("END_MATCH"))
                 self.ended = ("end_match", i)
                 return
 
         n = 1
         if self.mode == "STRATEGY":
-            n = random.randint(1, 3)     # both sides may draw 1-3
+            n = random.randint(1, 3)  # both sides may draw 1-3
         for _ in range(n):
             c = self.draw()
             if c:
@@ -368,12 +385,26 @@ class Match:
 
 def fresh_stats():
     return {
-        "deck_size": 0, "reshuffles": 0, "turnovers": 0, "fouls": 0, "penalties": 0,
-        "var_played": 0, "var_overturned": 0, "own_goal_played": 0,
-        "reshuffle_played": 0, "free_goals": 0, "assists_completed": 0, "leftovers_burned": 0, "voluntary_buildup": 0, "chain_passed_free": 0,
-        "attacks_played": Counter(), "attack_stopped": Counter(),
-        "attack_succeeded": Counter(), "defenses_played": Counter(),
-        "burned": Counter(), "goals_by_kind": Counter(),
+        "deck_size": 0,
+        "reshuffles": 0,
+        "turnovers": 0,
+        "fouls": 0,
+        "penalties": 0,
+        "var_played": 0,
+        "var_overturned": 0,
+        "own_goal_played": 0,
+        "reshuffle_played": 0,
+        "free_goals": 0,
+        "assists_completed": 0,
+        "leftovers_burned": 0,
+        "voluntary_buildup": 0,
+        "chain_passed_free": 0,
+        "attacks_played": Counter(),
+        "attack_stopped": Counter(),
+        "attack_succeeded": Counter(),
+        "defenses_played": Counter(),
+        "burned": Counter(),
+        "goals_by_kind": Counter(),
     }
 
 
@@ -405,14 +436,18 @@ def report(mode, matches, match_type="ONE_V_ONE"):
     stats, results, lengths, goals, wins = run(mode, matches, match_type)
     n = matches
     label = "1v1" if match_type == "ONE_V_ONE" else "2v2"
-    print(f"\n{'=' * 74}\n  {mode} MODE — {label} — {n:,} matches "
-          f"(deck: {stats['deck_size']} cards)\n{'=' * 74}")
+    print(
+        f"\n{'=' * 74}\n  {mode} MODE — {label} — {n:,} matches "
+        f"(deck: {stats['deck_size']} cards)\n{'=' * 74}"
+    )
 
     print("\nHOW MATCHES END")
     for reason, c in results.most_common():
-        label = {"goals": f"reached {GOALS_TO_WIN} goals",
-                 "end_match": "End Match card",
-                 "stalled": "never ended (hit the 3000-turn cap)"}[reason]
+        label = {
+            "goals": f"reached {GOALS_TO_WIN} goals",
+            "end_match": "End Match card",
+            "stalled": "never ended (hit the 3000-turn cap)",
+        }[reason]
         print(f"  {label:<38} {pct(c, n):>7}")
 
     decided = sum(wins.values())
@@ -423,8 +458,10 @@ def report(mode, matches, match_type="ONE_V_ONE"):
 
     print("\nMATCH LENGTH (turns)")
     ls = sorted(lengths)
-    print(f"  median {ls[len(ls) // 2]},  mean {sum(ls) / len(ls):.1f},  "
-          f"90th pct {ls[int(len(ls) * 0.9)]},  longest {ls[-1]}")
+    print(
+        f"  median {ls[len(ls) // 2]},  mean {sum(ls) / len(ls):.1f},  "
+        f"90th pct {ls[int(len(ls) * 0.9)]},  longest {ls[-1]}"
+    )
     print(f"  goals per match: mean {sum(goals) / len(goals):.2f}")
     print(f"  deck reshuffled mid-match: {stats['reshuffles'] / n:.1f}x per match")
 
@@ -443,14 +480,20 @@ def report(mode, matches, match_type="ONE_V_ONE"):
         print(f"  {face:<14}{c / n:>8.2f} per match")
 
     print("\nKEY MECHANICS PER MATCH")
-    for label, key in (("fouls", "fouls"), ("penalties converted", "penalties"),
-                       ("VAR played", "var_played"), ("goals overturned by VAR", "var_overturned"),
-                       ("Own Goal played", "own_goal_played"),
-                       ("Reshuffle played", "reshuffle_played"),
-                       ("possession conceded (no attack card)", "turnovers")):
+    for label, key in (
+        ("fouls", "fouls"),
+        ("penalties converted", "penalties"),
+        ("VAR played", "var_played"),
+        ("goals overturned by VAR", "var_overturned"),
+        ("Own Goal played", "own_goal_played"),
+        ("Reshuffle played", "reshuffle_played"),
+        ("possession conceded (no attack card)", "turnovers"),
+    ):
         print(f"  {label:<38}{stats[key] / n:>8.2f}")
     if mode == "STRATEGY":
-        print(f"  {'cards that passed undefended mid-chain':<38}{stats['chain_passed_free'] / n:>8.2f}")
+        print(
+            f"  {'cards that passed undefended mid-chain':<38}{stats['chain_passed_free'] / n:>8.2f}"
+        )
         print(f"  {'UNDEFENDED GOALS from mid-chain shots':<38}{stats['free_goals'] / n:>8.2f}")
         print(f"  {'leftover cards burned after a shot':<38}{stats['leftovers_burned'] / n:>8.2f}")
 
@@ -473,17 +516,23 @@ if __name__ == "__main__":
     ap.add_argument("--mode", default="both", choices=["LUCK", "STRATEGY", "both"])
     ap.add_argument("--players", default="both", choices=["1v1", "2v2", "both"])
     ap.add_argument("--seed", type=int, default=7)
-    ap.add_argument("--no-shot-last", action="store_true",
-                    help="Diagnostic: turn OFF the shot-must-be-last rule to re-measure the exploit.")
+    ap.add_argument(
+        "--no-shot-last",
+        action="store_true",
+        help="Diagnostic: turn OFF the shot-must-be-last rule to re-measure the exploit.",
+    )
     a = ap.parse_args()
     random.seed(a.seed)
     if a.no_shot_last:
         globals()["SHOT_LAST"] = False
         print("\n[diagnostic] shot-must-be-last is OFF — expect undefended mid-chain goals.")
-    types = {"1v1": ["ONE_V_ONE"], "2v2": ["TWO_V_TWO"],
-             "both": ["ONE_V_ONE", "TWO_V_TWO"]}[a.players]
+    types = {"1v1": ["ONE_V_ONE"], "2v2": ["TWO_V_TWO"], "both": ["ONE_V_ONE", "TWO_V_TWO"]}[
+        a.players
+    ]
     for mt in types:
-        for mode in (["LUCK", "STRATEGY"] if a.mode == "both" else [a.mode]):
+        for mode in ["LUCK", "STRATEGY"] if a.mode == "both" else [a.mode]:
             report(mode, a.matches, mt)
-    print("\nAssumptions A1-A3 are listed at the top of this script — if any of them "
-          "\nis wrong, the numbers change.\n")
+    print(
+        "\nAssumptions A1-A3 are listed at the top of this script — if any of them "
+        "\nis wrong, the numbers change.\n"
+    )

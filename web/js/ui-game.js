@@ -193,7 +193,7 @@ function renderBoard() {
 }
 
 function renderFeed() {
-  const box = $('state.feed');
+  const box = $('feed');
   const keyOnly = $('keyonly').checked;
   const rows = state.feed.filter(e => !keyOnly || e.kind === 'gap' || KEY_EVENTS.has(e.kind));
   box.innerHTML = '';

@@ -5,7 +5,7 @@
  *           pullDealt, renderPicker, confirmPicks,
  *           showWhyNot, whyDead, renderHand, submit. */
 import {CARDS, ICONS, FAMILY, GLOW} from '../cards.js';
-import {$, AR, KIND, KEY_EVENTS, state} from './ui-render.js';
+import {$, AR, KIND, KEY_EVENTS, state, render} from './ui-render.js';
 import {VAR_CONTEXT} from './ui-animations.js';
 
 const icon = (face, px) => `<svg width="${px}" height="${px}" viewBox="0 0 40 44" fill="none"

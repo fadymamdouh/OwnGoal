@@ -11,6 +11,6 @@ No game logic has changed.
 
 from .bot import bot_action
 from .game import Game
-from .rules_loader import GOALS_TO_WIN, HAND
+from .rules_loader import ACTIONS, EVENTS, GOALS_TO_WIN, HAND, PHASES
 
-__all__ = ["Game", "bot_action", "GOALS_TO_WIN", "HAND"]
+__all__ = ["ACTIONS", "EVENTS", "Game", "GOALS_TO_WIN", "HAND", "PHASES", "bot_action"]

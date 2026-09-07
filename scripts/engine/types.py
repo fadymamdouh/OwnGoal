@@ -37,9 +37,9 @@ class Seat:
         self.index = index
         self.name = name
         self.hand: list[Card] = []
-        self.fouled: bool = False          # may play Penalty
-        self.goal_unlocked: bool = False   # partner's Assist landed
-        self.var_used_on: int = -1         # last event id this seat reviewed
+        self.fouled: bool = False  # may play Penalty
+        self.goal_unlocked: bool = False  # partner's Assist landed
+        self.var_used_on: int = -1  # last event id this seat reviewed
 
     def find(self, cid: str) -> Card | None:
         """Find a card in hand by id."""

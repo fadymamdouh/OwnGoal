@@ -28,12 +28,15 @@ from .phases import (
 )
 from .rng import build_deck, make_rng
 from .rules_loader import (
+    ACTIONS,
     ATTACK_FACES,
     CARDS,
     COUNTERS,
     DEFENSE_FACES,
+    EVENTS,
     GOALS_TO_WIN,
     HAND,
+    PHASES,
     POSSESSION,
     RULES,
     SHOT_STAGE,
@@ -109,7 +112,7 @@ class Game:
                 return None
             self.deck, self.discard = self.discard, []
             self.rng.shuffle(self.deck)
-            self._emit("deck_recycled")
+            self._emit(EVENTS.DECK_RECYCLED)
         return self.deck.pop()
 
     def _burn(self, seat: Seat, card: Card) -> None:
@@ -156,22 +159,22 @@ class Game:
         self.defender = self._next(self.possession)
         if self._strategy():
             self.owed = 0
-            return "attack_draw"
+            return PHASES.ATTACK_DRAW
         self.owed = 1
         c = self._draw()
         if c:
             self.seats[self.possession].hand.append(c)
-        return "attack"
+        return PHASES.ATTACK
 
     def _open_defense(self) -> str:
         if self._strategy():
             self.def_owed = 0
-            return "defense_draw"
+            return PHASES.DEFENSE_DRAW
         self.def_owed = 1
         c = self._draw()
         if c:
             self.seats[self.defender].hand.append(c)
-        return "defense"
+        return PHASES.DEFENSE
 
     # ── views ───────────────────────────────────────────────────────
 
@@ -190,7 +193,7 @@ class Game:
             "goals_to_win": GOALS_TO_WIN,
             "deck_left": len(self.deck),
             "discard": len(self.discard),
-            "over": self.over,
+            PHASES.OVER: self.over,
             "winner": self.winner,
             "owed": self.owed if seat_i == self.possession else self.def_owed,
             "pending": self.pending,
@@ -214,86 +217,86 @@ class Game:
         me = self.seats[seat_i]
         acts: list[dict] = []
 
-        if self.phase == "attack_draw" and seat_i == self.possession:
+        if self.phase == PHASES.ATTACK_DRAW and seat_i == self.possession:
             top = min(3, max(1, len(self.deck) + len(self.discard)))
-            return [{"type": "draw", "n": k} for k in range(1, top + 1)]
+            return [{"type": ACTIONS.DRAW, "n": k} for k in range(1, top + 1)]
 
-        if self.phase == "defense_draw" and seat_i == self.defender:
+        if self.phase == PHASES.DEFENSE_DRAW and seat_i == self.defender:
             top = min(3, max(1, len(self.deck) + len(self.discard)))
-            return [{"type": "draw", "n": k} for k in range(1, top + 1)]
+            return [{"type": ACTIONS.DRAW, "n": k} for k in range(1, top + 1)]
 
-        if self.phase == "attack" and seat_i == self.possession:
+        if self.phase == PHASES.ATTACK and seat_i == self.possession:
             last = self.owed <= 1
             for c, f in self._playable_attack_faces(me, last):
-                acts.append({"type": "play", "card_id": c.id, "face": f})
+                acts.append({"type": ACTIONS.PLAY, "card_id": c.id, "face": f})
             for f in ("RESHUFFLE", "END_MATCH"):
                 for c in me.hand:
                     if f not in c.faces:
                         continue
                     if f == "END_MATCH":
-                        acts.append({"type": "special", "card_id": c.id, "face": f})
+                        acts.append({"type": ACTIONS.SPECIAL, "card_id": c.id, "face": f})
                     else:
                         # swap with the deck, or in 2v2 trade with your partner
-                        acts.append({"type": "special", "card_id": c.id,
+                        acts.append({"type": ACTIONS.SPECIAL, "card_id": c.id,
                                      "face": f, "swap": "deck"})
                         if self.n > 2:
-                            acts.append({"type": "special", "card_id": c.id,
+                            acts.append({"type": ACTIONS.SPECIAL, "card_id": c.id,
                                          "face": f, "swap": "partner"})
                     break
-            if not any(a["type"] == "play" for a in acts):
-                acts.append({"type": "concede_possession"})
+            if not any(a["type"] == ACTIONS.PLAY for a in acts):
+                acts.append({"type": ACTIONS.CONCEDE_POSSESSION})
             return acts
 
-        if self.phase == "defense" and seat_i == self.defender:
+        if self.phase == PHASES.DEFENSE and seat_i == self.defender:
             target = self.chain[-1]
             for c in me.hand:
                 # VAR answers a Goal or a Penalty as a review — pure luck flip
                 if "VAR" in c.faces and target in COUNTERS.get("VAR", set()):
-                    acts.append({"type": "play", "card_id": c.id,
+                    acts.append({"type": ACTIONS.PLAY, "card_id": c.id,
                                  "face": "VAR", "counters": True})
                     continue
                 f = c.face_of_class("defense") or ("CHAIN" if "CHAIN" in c.faces else None)
                 if f and f in DEFENSE_FACES:
                     valid = target in COUNTERS.get(f, set())
-                    acts.append({"type": "play", "card_id": c.id, "face": f,
+                    acts.append({"type": ACTIONS.PLAY, "card_id": c.id, "face": f,
                                  "counters": valid})
                 else:
                     # L35: END_MATCH cannot be activated while defending
                     if c.faces[0] == "END_MATCH":
                         continue
                     # mandatory attempt: any card may be burned
-                    acts.append({"type": "play", "card_id": c.id,
+                    acts.append({"type": ACTIONS.PLAY, "card_id": c.id,
                                  "face": c.faces[0], "counters": False})
             return acts
 
         # L33: each player picks the cards leaving their OWN hand
-        if self.phase == "reshuffle_pick" and seat_i == self.pending["seat"]:
+        if self.phase == PHASES.RESHUFFLE_PICK and seat_i == self.pending["seat"]:
             chosen = self.pending["chosen"]
             for c in me.hand:
                 if c.id not in chosen:
-                    acts.append({"type": "pick", "card_id": c.id})
+                    acts.append({"type": ACTIONS.PICK, "card_id": c.id})
             return acts
 
         # L34: after OFFSIDE stops an attack, the attacker can contest with VAR
-        if self.phase == "react_var_offside" and seat_i == self.pending["seat"]:
+        if self.phase == PHASES.REACT_VAR_OFFSIDE and seat_i == self.pending["seat"]:
             for c in me.hand:
                 if "VAR" in c.faces:
-                    acts.append({"type": "play", "card_id": c.id, "face": "VAR", "counters": True})
-            acts.append({"type": "pass"})
+                    acts.append({"type": ACTIONS.PLAY, "card_id": c.id, "face": "VAR", "counters": True})
+            acts.append({"type": ACTIONS.PASS})
             return acts
 
-        if self.phase == "react_own_goal" and seat_i == self.pending["seat"]:
+        if self.phase == PHASES.REACT_OWN_GOAL and seat_i == self.pending["seat"]:
             for c in me.hand:
                 if "OWN_GOAL" in c.faces:
-                    acts.append({"type": "play", "card_id": c.id, "face": "OWN_GOAL"})
-            acts.append({"type": "pass"})
+                    acts.append({"type": ACTIONS.PLAY, "card_id": c.id, "face": "OWN_GOAL"})
+            acts.append({"type": ACTIONS.PASS})
             return acts
 
-        if self.phase == "react_var" and seat_i == self.pending["seat"]:
+        if self.phase == PHASES.REACT_VAR and seat_i == self.pending["seat"]:
             for c in me.hand:
                 if "VAR" in c.faces:
-                    acts.append({"type": "play", "card_id": c.id, "face": "VAR"})
-            acts.append({"type": "pass"})
+                    acts.append({"type": ACTIONS.PLAY, "card_id": c.id, "face": "VAR"})
+            acts.append({"type": ACTIONS.PASS})
             return acts
 
         return acts
@@ -311,14 +314,14 @@ class Game:
         self._check(seat_i, action)
         before = len(self.log)
         handler = {
-            "attack_draw": self._do_draw,
-            "defense_draw": self._do_draw,
-            "attack": self._do_attack,
-            "defense": self._do_defense,
-            "react_own_goal": self._do_own_goal,
-            "react_var": self._do_var,
-            "react_var_offside": self._do_var_offside,
-            "reshuffle_pick": self._do_reshuffle_pick,
+            PHASES.ATTACK_DRAW: self._do_draw,
+            PHASES.DEFENSE_DRAW: self._do_draw,
+            PHASES.ATTACK: self._do_attack,
+            PHASES.DEFENSE: self._do_defense,
+            PHASES.REACT_OWN_GOAL: self._do_own_goal,
+            PHASES.REACT_VAR: self._do_var,
+            PHASES.REACT_VAR_OFFSIDE: self._do_var_offside,
+            PHASES.RESHUFFLE_PICK: self._do_reshuffle_pick,
         }[self.phase]
         handler(seat_i, action)
         return self.log[before:]
@@ -337,7 +340,7 @@ class Game:
             if not self.no_var_review and any("VAR" in c.faces for c in self.seats[attacker].hand):
                 self.no_var_review = False
                 self.pending = {"seat": attacker, "reason": "offside", "def_seat": def_seat}
-                self.phase = "react_var_offside"
+                self.phase = PHASES.REACT_VAR_OFFSIDE
                 return
 
         if outcome == "defender":
@@ -349,8 +352,8 @@ class Game:
                 self.def_owed = 0
                 self.chain = []
                 self.defender = self._next(self.possession)
-                self._emit("counter_attack", seat=self.possession, cards=self.owed)
-                self.phase = "attack"
+                self._emit(EVENTS.COUNTER_ATTACK, seat=self.possession, cards=self.owed)
+                self.phase = PHASES.ATTACK
                 if not self._playable_attack_faces(
                         self.seats[self.possession], self.owed <= 1):
                     self._concede()
@@ -369,14 +372,14 @@ class Game:
         self.def_owed = 0
         if any("OWN_GOAL" in c.faces for c in self.seats[def_seat].hand):
             self.pending = {"seat": def_seat, "reason": "shot", "face": self.chain[-1]}
-            self.phase = "react_own_goal"
+            self.phase = PHASES.REACT_OWN_GOAL
             return
         self._score(self.possession, self.chain[-1])
 
     def _score(self, scorer: int, face: str, conceder: int | None = None) -> None:
         conceder = self._next(scorer) if conceder is None else conceder
         self.score[self.team(scorer)] += 1
-        ev = self._emit("goal", scorer=scorer, face=face, conceder=conceder,
+        ev = self._emit(EVENTS.GOAL, scorer=scorer, face=face, conceder=conceder,
                         score=list(self.score))
         victim = self._next_of_team(self._next(scorer), self.team(conceder))
         reviewed = self.no_var_review
@@ -384,7 +387,7 @@ class Game:
         if not reviewed and any("VAR" in c.faces for c in self.seats[victim].hand):
             self.pending = {"seat": victim, "reason": "goal", "event": ev["id"],
                             "scorer": scorer, "conceder": conceder}
-            self.phase = "react_var"
+            self.phase = PHASES.REACT_VAR
             return
         self._after_goal(conceder)
 
@@ -392,8 +395,8 @@ class Game:
         self._refill_all()
         for t in (0, 1):
             if self.score[t] >= GOALS_TO_WIN:
-                self.over, self.winner, self.phase = True, t, "over"
-                self._emit("match_over", winner=t, reason="goals",
+                self.over, self.winner, self.phase = True, t, PHASES.OVER
+                self._emit(EVENTS.MATCH_OVER, winner=t, reason="goals",
                            score=list(self.score))
                 return
         self.possession = self._next_of_team(self._next(self.defender),
@@ -429,7 +432,7 @@ class Game:
             self._refill(s)
 
     def _concede(self) -> None:
-        self._emit("possession_conceded", seat=self.possession)
+        self._emit(EVENTS.POSSESSION_CONCEDED, seat=self.possession)
         self._burn_owed(self.possession, self.owed)
         self.owed = self.def_owed = 0
         self._refill_all()
@@ -450,8 +453,8 @@ class Game:
             "chosen": [],
             "taken": {},
         }
-        self.phase = "reshuffle_pick"
-        self._emit("reshuffle_opened", seat=seat_i,
+        self.phase = PHASES.RESHUFFLE_PICK
+        self._emit(EVENTS.RESHUFFLE_OPENED, seat=seat_i,
                    swap=self.pending["swap"],
                    partner=partner if with_partner else None)
         self._maybe_finish_picking()
@@ -474,7 +477,7 @@ class Game:
                 and p["partner"] not in p["taken"]):
             p["seat"] = p["partner"]
             p["chosen"] = []
-            self._emit("reshuffle_turn", seat=p["partner"])
+            self._emit(EVENTS.RESHUFFLE_TURN, seat=p["partner"])
             self._maybe_finish_picking()
             return
 
@@ -482,16 +485,16 @@ class Game:
             a, b = p["owner"], p["partner"]
             self.seats[a].hand.extend(p["taken"][b])
             self.seats[b].hand.extend(p["taken"][a])
-            self._emit("reshuffled", seat=a, swap="partner", partner=b,
+            self._emit(EVENTS.RESHUFFLED, seat=a, swap="partner", partner=b,
                        n=len(p["taken"][a]))
         else:
             self.discard.extend(p["taken"][p["owner"]])
-            self._emit("reshuffled", seat=p["owner"], swap="deck",
+            self._emit(EVENTS.RESHUFFLED, seat=p["owner"], swap="deck",
                        n=len(p["taken"][p["owner"]]))
 
         self.pending = None
         self._refill_all()
-        self.phase = "attack"
+        self.phase = PHASES.ATTACK
         if not self._playable_attack_faces(
                 self.seats[self.possession], self.owed <= 1):
             self._concede()
@@ -499,6 +502,6 @@ class Game:
     def _end_match(self, seat_i: int) -> None:
         mine, theirs = self.team(seat_i), 1 - self.team(seat_i)
         self.winner = mine if self.score[mine] > self.score[theirs] else theirs
-        self.over, self.phase = True, "over"
-        self._emit("match_over", winner=self.winner, reason="end_match",
+        self.over, self.phase = True, PHASES.OVER
+        self._emit(EVENTS.MATCH_OVER, winner=self.winner, reason="end_match",
                    played_by=seat_i, score=list(self.score))

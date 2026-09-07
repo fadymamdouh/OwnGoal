@@ -172,9 +172,7 @@ class RoomManager:
         guard = 0
         while g and not g.over and guard < 200:
             guard += 1
-            actor = next(
-                (s.index for s in g.seats if g.legal_actions(s.index)), None
-            )
+            actor = next((s.index for s in g.seats if g.legal_actions(s.index)), None)
             if actor is None:
                 break
             p = room.by_seat(actor)
@@ -185,22 +183,18 @@ class RoomManager:
             if action is None:
                 break
             g.apply(actor, action)
-            await broadcast_state(room)
+            await self.broadcast_state(room)
 
     # ── action dispatch ─────────────────────────────────────────────
 
-    async def apply_action(
-        self, room: Room, player: Player, action: dict
-    ) -> bool:
+    async def apply_action(self, room: Room, player: Player, action: dict) -> bool:
         """Apply a player action under the room lock. Returns True on success."""
         async with room.lock:
             try:
                 room.game.apply(player.seat, action)
                 return True
             except (ValueError, Exception) as exc:
-                await self._send(
-                    player.ws, {"t": "error", "msg": "حركة مرفوضة"}
-                )
+                await self._send(player.ws, {"t": "error", "msg": "حركة مرفوضة"})
                 await self._send(
                     player.ws,
                     {
